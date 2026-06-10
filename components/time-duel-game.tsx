@@ -13,6 +13,14 @@ type GuessRecord = {
 
 const rounds = questions.slice(0, 5);
 const totalRounds = rounds.length;
+const categories = [
+  "Classic",
+  "Football",
+  "Key Events",
+  "All Time",
+  "Music",
+  "More...",
+] as const;
 
 export function TimeDuelGame() {
   const [hasStarted, setHasStarted] = useState(false);
@@ -49,49 +57,84 @@ export function TimeDuelGame() {
     setCurrentRound((round) => round + 1);
   }
 
-  if (!hasStarted) {
+  function renderBrand(lockupClassName = "") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#c9652f] px-4 py-6 text-stone-950">
-        <section className="w-full max-w-2xl rounded-[2rem] border border-black/10 bg-white/75 p-8 shadow-[0_24px_80px_rgba(40,22,10,0.25)] backdrop-blur">
-          <p className="text-center text-5xl font-black uppercase tracking-[0.16em] text-amber-800 sm:text-7xl">
-            TimeDuel
-          </p>
-          <h1 className="mt-6 text-center text-3xl font-black uppercase tracking-tight text-balance sm:text-4xl">
-            Guess the year from the photo.
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-center text-lg leading-7 text-stone-700">
-            Five rounds. One photo each round. Pick from three years and see
-            how many you get right.
-          </p>
-          <div className="mt-8 flex justify-center">
-            <button
-              type="button"
-              onClick={startGame}
-              className="inline-flex h-14 items-center justify-center rounded-full bg-stone-950 px-8 text-base font-semibold text-white transition hover:bg-stone-800"
-            >
-              Start duel
-            </button>
+      <div className={["text-center", lockupClassName].join(" ")}>
+        <div className="flex items-end justify-center gap-3">
+          <span className="text-5xl leading-none sm:text-6xl" aria-hidden="true">
+            ⌛
+          </span>
+          <div className="flex items-end leading-none">
+            <span className="text-6xl font-light tracking-[-0.06em] text-white sm:text-8xl">
+              Time
+            </span>
+            <span className="text-6xl font-light tracking-[-0.06em] text-[#f7b63d] sm:text-8xl">
+              Duel
+            </span>
           </div>
-        </section>
+        </div>
+        <p className="mt-2 text-sm font-light tracking-[0.08em] text-white/88 sm:text-xl">
+          Guess when history happened
+        </p>
+      </div>
+    );
+  }
+
+  function shell(children: React.ReactNode) {
+    return (
+      <main className="min-h-screen bg-[#101a35] px-4 py-6 text-white sm:px-8 sm:py-8">
+        <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
+          {children}
+        </div>
       </main>
     );
   }
 
+  if (!hasStarted) {
+    return shell(
+      <section className="flex flex-1 flex-col items-center justify-center gap-12 py-8 sm:gap-16">
+        {renderBrand()}
+
+        <button
+          type="button"
+          onClick={startGame}
+          className="w-full max-w-5xl rounded-[1.35rem] border-[5px] border-white px-8 py-8 text-center text-5xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6 sm:px-12 sm:py-10 sm:text-8xl"
+        >
+          Play Now
+        </button>
+
+        <div className="grid w-full max-w-5xl grid-cols-2 justify-items-center gap-x-6 gap-y-7 sm:grid-cols-3">
+          {categories.map((category) => (
+            <div
+              key={category}
+              className="rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-2xl font-medium tracking-[-0.03em] text-white sm:min-w-[12rem] sm:px-5 sm:py-3 sm:text-5xl"
+            >
+              {category}
+            </div>
+          ))}
+        </div>
+      </section>,
+    );
+  }
+
   if (isFinished) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#c9652f] px-4 py-6 text-white">
-        <section className="w-full max-w-3xl rounded-[2rem] border border-white/15 bg-black/30 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur">
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-200/80">
+    return shell(
+      <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center py-6">
+        {renderBrand("mb-8")}
+
+        <div className="rounded-[2rem] border-[4px] border-white p-6 sm:p-10">
+          <p className="text-center text-sm uppercase tracking-[0.45em] text-white/70">
             Final score
           </p>
-          <h1 className="mt-3 text-6xl font-black tracking-tight">
+          <h1 className="mt-4 text-center text-6xl font-medium tracking-[-0.06em] text-white sm:text-8xl">
             {score}/{totalRounds}
           </h1>
-          <p className="mt-3 text-lg text-white/80">
+          <p className="mx-auto mt-4 max-w-xl text-center text-lg text-white/78 sm:text-xl">
             {score === totalRounds
               ? "Perfect run."
-              : "Tap replay to run the five rounds again."}
+              : "Run it back and see if you can improve the score."}
           </p>
+
           <div className="mt-8 grid gap-3">
             {rounds.map((question, index) => {
               const guess = guesses[index];
@@ -99,72 +142,63 @@ export function TimeDuelGame() {
               return (
                 <div
                   key={question.id}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/8 px-4 py-3"
+                  className="flex items-center justify-between rounded-[1.1rem] border-[3px] border-white px-4 py-3 text-sm sm:px-5 sm:text-lg"
                 >
-                  <span className="text-sm uppercase tracking-[0.2em] text-white/65">
-                    Round {index + 1}
+                  <span className="tracking-[0.18em] text-white/72">
+                    ROUND {index + 1}
                   </span>
-                  <span className="text-sm text-white/80">
+                  <span className="text-white">
                     {guess?.selectedYear ?? "No guess"} / {question.correctAnswer}
                   </span>
                 </div>
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={startGame}
-            className="mt-8 inline-flex h-14 items-center justify-center rounded-full bg-white px-8 text-base font-semibold text-stone-950 transition hover:bg-amber-100"
-          >
-            Play again
-          </button>
-        </section>
-      </main>
+
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={startGame}
+              className="rounded-[1.15rem] border-[4px] border-white px-8 py-4 text-3xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6 sm:text-5xl"
+            >
+              Play Again
+            </button>
+          </div>
+        </div>
+      </section>,
     );
   }
 
-  return (
-    <main className="min-h-screen overflow-hidden bg-[#c9652f] px-3 py-3 text-stone-950 sm:px-4 sm:py-4">
-      <section className="mx-auto grid min-h-[calc(100vh-1.5rem)] w-full max-w-6xl grid-rows-[auto_auto_1fr_auto] gap-3 rounded-[2rem] border border-black/10 bg-white/72 p-3 shadow-[0_28px_90px_rgba(46,20,11,0.2)] backdrop-blur sm:min-h-[calc(100vh-2rem)] sm:p-4">
-        <header className="flex items-center justify-between gap-3 rounded-[1.5rem] bg-white/70 px-4 py-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-800">
-              TimeDuel
-            </p>
-            <h1 className="text-xl font-black uppercase tracking-tight">
-              Round {currentRound + 1} of {totalRounds}
-            </h1>
-          </div>
-          <div className="rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white">
-            Score {score}
-          </div>
-        </header>
+  return shell(
+    <section className="flex flex-1 flex-col py-2">
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm uppercase tracking-[0.38em] text-white/70">
+            Round {currentRound + 1} of {totalRounds}
+          </p>
+          <p className="mt-2 text-base text-white/82">Guess the year from the photo.</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm uppercase tracking-[0.38em] text-white/70">Score</p>
+          <p className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white">
+            {score}
+          </p>
+        </div>
+      </header>
 
-        <p className="px-1 text-center text-sm font-medium text-stone-700 sm:text-base">
-          Study the photo, then choose the year.
-        </p>
-
-        <div className="relative min-h-0 overflow-hidden rounded-[1.75rem] border border-black/10 bg-stone-950/90">
+      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-6 py-8">
+        <div className="relative aspect-[4/3] w-full max-w-4xl overflow-hidden rounded-[1.6rem] border-[4px] border-white bg-[#0a1126]">
           <Image
             src={currentQuestion.imageUrl}
             alt={currentQuestion.alt}
             fill
             priority
-            sizes="100vw"
+            sizes="(max-width: 1024px) 100vw, 900px"
             className="object-contain"
           />
         </div>
 
-        {currentGuess && currentQuestion.photoCredit ? (
-          <div className="px-2 text-center text-xs leading-5 text-stone-700 sm:text-sm">
-            {currentQuestion.photoCaption ? (
-              <p>{currentQuestion.photoCaption}</p>
-            ) : null}
-            <p className="font-medium">{currentQuestion.photoCredit}</p>
-          </div>
-        ) : null}
-
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid w-full max-w-4xl gap-4 sm:grid-cols-3">
           {currentQuestion.options.map((option) => {
             const isSelected = currentGuess?.selectedYear === option;
             const isCorrect = option === currentQuestion.correctAnswer;
@@ -177,12 +211,12 @@ export function TimeDuelGame() {
                 onClick={() => handleGuess(option)}
                 disabled={showResult}
                 className={[
-                  "flex min-h-16 items-center justify-center rounded-[1.5rem] border px-4 py-4 text-lg font-black transition",
+                  "rounded-[1.25rem] border-[4px] px-4 py-5 text-4xl font-medium tracking-[-0.04em] transition",
                   showResult && isCorrect
-                    ? "border-emerald-600 bg-emerald-500 text-white"
+                    ? "border-[#6fe6a4] bg-[#6fe6a4]/15 text-[#d9ffe9]"
                     : showResult && isSelected
-                      ? "border-rose-700 bg-rose-600 text-white"
-                      : "border-black/10 bg-white/80 text-stone-950 hover:bg-white",
+                      ? "border-[#ff8d8d] bg-[#ff8d8d]/12 text-[#ffe3e3]"
+                      : "border-white text-white hover:bg-white/6",
                   showResult ? "cursor-default" : "cursor-pointer",
                 ].join(" ")}
               >
@@ -192,23 +226,34 @@ export function TimeDuelGame() {
           })}
         </div>
 
-        {currentGuess ? (
-          <div className="flex flex-col items-center gap-3 pb-1">
-            <p className="text-center text-base font-semibold text-stone-800">
-              {currentGuess.isCorrect
-                ? "Correct."
-                : `Wrong. The correct year was ${currentQuestion.correctAnswer}.`}
-            </p>
-            <button
-              type="button"
-              onClick={advanceRound}
-              className="inline-flex h-12 items-center justify-center rounded-full bg-stone-950 px-6 text-sm font-semibold text-white transition hover:bg-stone-800"
-            >
-              {currentRound === totalRounds - 1 ? "See results" : "Next round"}
-            </button>
-          </div>
-        ) : null}
-      </section>
-    </main>
+        <div className="flex min-h-[9rem] w-full max-w-4xl items-start justify-center">
+          {currentGuess ? (
+            <div className="w-full max-w-2xl text-center">
+              <p className="text-lg text-white">
+                {currentGuess.isCorrect
+                  ? "Correct."
+                  : `Wrong. The correct year was ${currentQuestion.correctAnswer}.`}
+              </p>
+              <button
+                type="button"
+                onClick={advanceRound}
+                className="mt-4 rounded-[1.15rem] border-[4px] border-white px-8 py-4 text-3xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
+              >
+                {currentRound === totalRounds - 1 ? "See Results" : "Next Round"}
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="min-h-[5.5rem] w-full max-w-4xl">
+          {currentGuess && currentQuestion.photoCredit ? (
+            <div className="mx-auto w-full max-w-3xl text-center text-sm leading-6 text-white/74">
+              {currentQuestion.photoCaption ? <p>{currentQuestion.photoCaption}</p> : null}
+              <p className="font-medium text-white/88">{currentQuestion.photoCredit}</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>,
   );
 }

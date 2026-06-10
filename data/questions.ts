@@ -13,6 +13,9 @@ export const questions: Question[] = [
     id: 1,
     imageUrl: "/images/photo1.jpeg",
     alt: "Historic street scene",
+    photoCaption:
+      "Vladimir Lenin delivering a speech to Red Army soldiers in Moscow's Sverdlov Square (now Teatralnaya Square) just before their departure to the front during the Polish-Soviet War.",
+    photoCredit: "Grigory Petrovich Goldstein, Public domain, via Wikimedia Commons", 
     options: [1914, 1920, 1926],
     correctAnswer: 1920,
   },
@@ -40,7 +43,7 @@ export const questions: Question[] = [
   {
     id: 5,
     imageUrl: "/images/photo5.jpeg",
-    alt: "Color historical photograph",
+    alt: "Colour historical photograph",
     photoCaption:
       "Ivana Trump shaking hands with Fahd of Saudi Arabia during a state visit to the White House.",
     photoCredit: "Michael Evans, Public domain, via Wikimedia Commons",
