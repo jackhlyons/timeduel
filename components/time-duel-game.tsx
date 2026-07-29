@@ -17,6 +17,7 @@ type GuessRecord = {
   questionId: number;
   selectedYear: number;
   difference: number;
+  roundScore: number;
 };
 
 type YearTimelineProps = {
@@ -33,6 +34,9 @@ const defaultTimelineYear = maximumYear;
 const minimumZoom = 4;
 const maximumZoom = 28;
 const defaultZoom = 8;
+const maximumRoundScore = 100;
+const finalScoreMultiplier = 2;
+const scoreFadeYears = 50;
 const categories = [
   "Classic",
   "Football",
@@ -51,6 +55,11 @@ function touchDistance(
   touchB: { clientX: number; clientY: number },
 ) {
   return Math.hypot(touchA.clientX - touchB.clientX, touchA.clientY - touchB.clientY);
+}
+
+function getRoundScore(difference: number) {
+  const normalized = 1 - clamp(difference / scoreFadeYears, 0, 1);
+  return Math.round(normalized * maximumRoundScore);
 }
 
 function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
@@ -294,8 +303,9 @@ export function TimeDuelGame() {
   const currentQuestion = rounds[currentRound];
   const currentGuess = guesses[currentRound];
   const exactHits = guesses.filter((guess) => guess.difference === 0).length;
-  const totalError = guesses.reduce((sum, guess) => sum + guess.difference, 0);
-  const averageError = guesses.length > 0 ? Math.round(totalError / guesses.length) : 0;
+  const rawScore = guesses.reduce((sum, guess) => sum + guess.roundScore, 0);
+  const totalScore = rawScore * finalScoreMultiplier;
+  const averageScore = guesses.length > 0 ? Math.round(rawScore / guesses.length) : 0;
   const isFinished = currentRound >= totalRounds;
 
   function startGame() {
@@ -310,12 +320,15 @@ export function TimeDuelGame() {
       return;
     }
 
+    const difference = Math.abs(selectedYear - currentQuestion.correctAnswer);
+
     setGuesses((previous) => [
       ...previous,
       {
         questionId: currentQuestion.id,
         selectedYear,
-        difference: Math.abs(selectedYear - currentQuestion.correctAnswer),
+        difference,
+        roundScore: getRoundScore(difference),
       },
     ]);
   }
@@ -402,22 +415,22 @@ export function TimeDuelGame() {
               </p>
             </div>
             <div className="rounded-[1.4rem] border-[3px] border-white px-4 py-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/62">Total error</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/62">Total score</p>
               <p className="mt-3 text-5xl font-medium tracking-[-0.06em] text-white">
-                {totalError}
+                {totalScore}
               </p>
             </div>
             <div className="rounded-[1.4rem] border-[3px] border-white px-4 py-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/62">Avg. miss</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/62">Avg. round</p>
               <p className="mt-3 text-5xl font-medium tracking-[-0.06em] text-white">
-                {averageError}
+                {averageScore}
               </p>
             </div>
           </div>
           <p className="mx-auto mt-6 max-w-xl text-center text-lg text-white/78 sm:text-xl">
-            {totalError === 0
+            {rawScore === totalRounds * maximumRoundScore
               ? "Perfect run."
-              : "Lower your year error on the next run."}
+              : "Push for a higher score on the next run."}
           </p>
 
           <div className="mt-8 grid gap-3">
@@ -434,7 +447,7 @@ export function TimeDuelGame() {
                   </span>
                   <span className="text-white">
                     {guess?.selectedYear ?? "No guess"} / {question.correctAnswer}
-                    {guess ? ` (${guess.difference} off)` : ""}
+                    {guess ? ` (${guess.roundScore} pts)` : ""}
                   </span>
                 </div>
               );
@@ -467,14 +480,22 @@ export function TimeDuelGame() {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-sm uppercase tracking-[0.38em] text-white/70">Total error</p>
+          <p className="text-sm uppercase tracking-[0.38em] text-white/70">Round total</p>
           <p className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white">
-            {totalError}
+            {rawScore}
           </p>
+          <p className="mt-1 text-sm text-white/60">/ {totalRounds * maximumRoundScore}</p>
         </div>
       </header>
 
-      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-6 py-8">
+      <div className="grid flex-1 grid-rows-[auto_auto_auto_auto_1fr] justify-items-center gap-6 py-8">
+        <div className="w-full max-w-4xl rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-center">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/58">Photo description</p>
+          <p className="mt-2 text-base leading-7 text-white/88 sm:text-lg">
+            {currentQuestion.photoCaption ?? currentQuestion.alt}
+          </p>
+        </div>
+
         <div className="relative aspect-[4/3] w-full max-w-4xl overflow-hidden rounded-[1.6rem] border-[4px] border-white bg-[#0a1126]">
           <Image
             src={currentQuestion.imageUrl}
@@ -497,8 +518,8 @@ export function TimeDuelGame() {
             <div className="w-full max-w-2xl text-center">
               <p className="text-lg text-white">
                 {currentGuess.difference === 0
-                  ? "Exact hit."
-                  : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. The correct year was ${currentQuestion.correctAnswer}.`}
+                  ? `Exact hit. ${currentGuess.roundScore} points.`
+                  : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.correctAnswer}.`}
               </p>
               <button
                 type="button"
@@ -522,7 +543,6 @@ export function TimeDuelGame() {
         <div className="min-h-[5.5rem] w-full max-w-4xl">
           {currentGuess && currentQuestion.photoCredit ? (
             <div className="mx-auto w-full max-w-3xl text-center text-sm leading-6 text-white/74">
-              {currentQuestion.photoCaption ? <p>{currentQuestion.photoCaption}</p> : null}
               <p className="font-medium text-white/88">{currentQuestion.photoCredit}</p>
             </div>
           ) : null}
