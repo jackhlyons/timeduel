@@ -24,7 +24,7 @@ type YearTimelineProps = {
   disabled: boolean;
   selectedYear: number;
   onChange: (year: number) => void;
-  onSubmit: () => void;
+  revealedYear?: number;
 };
 
 const rounds = questions.slice(0, 5);
@@ -96,7 +96,7 @@ function getScoreEmoji(score: number) {
   return "😵";
 }
 
-function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimelineProps) {
+function YearTimeline({ disabled, selectedYear, onChange, revealedYear }: YearTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const syncScrollRef = useRef(false);
   const pinchStateRef = useRef<{
@@ -249,9 +249,9 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimeli
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-b-[1.6rem] border-[4px] border-t-0 border-white bg-[#0a1126]/85 px-2 py-5">
-      <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-[#0b1530]">
-        <div className="mb-3 flex items-center justify-between px-3 text-[0.7rem] uppercase tracking-[0.3em] text-white/52">
+    <div className="w-full overflow-hidden rounded-[1.4rem] border-[4px] border-white bg-[#132041]/85 px-2 py-3">
+      <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-[#162348]">
+        <div className="mb-2 flex items-center justify-between px-3 text-[0.65rem] uppercase tracking-[0.26em] text-white/52">
           <span>{minimumYear}</span>
           <span>Pinch or ctrl-scroll to zoom</span>
           <span>{maximumYear}</span>
@@ -271,11 +271,24 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimeli
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             className={[
-              "timeline-viewport relative h-32 max-w-full overflow-x-auto overflow-y-hidden",
+              "timeline-viewport relative h-24 max-w-full overflow-x-auto overflow-y-hidden",
               disabled ? "pointer-events-none opacity-70" : "",
             ].join(" ")}
           >
             <div className="relative h-full" style={{ width: `${contentWidth}px` }}>
+              {typeof revealedYear === "number" ? (
+                <div
+                  className="pointer-events-none absolute top-0 z-10 h-full"
+                  style={{
+                    left: `${(clamp(revealedYear, minimumYear, maximumYear) - minimumYear) * pixelsPerYear + viewportWidth / 2}px`,
+                    transform: "translateX(-50%)",
+                  }}
+                >
+                  <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[#39d353]" />
+                  <div className="absolute left-1/2 top-3 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-white bg-[#39d353]" />
+                </div>
+              ) : null}
+
               {years.map((year) => {
                 const offset = (year - minimumYear) * pixelsPerYear + viewportWidth / 2;
                 const isDecade = year % 10 === 0;
@@ -307,17 +320,6 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimeli
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 flex justify-center">
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={disabled}
-          className="rounded-[1.15rem] border-[4px] border-white px-8 py-4 text-3xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6 disabled:cursor-default disabled:opacity-70"
-        >
-          Guess
-        </button>
       </div>
 
     </div>
@@ -396,7 +398,7 @@ export function TimeDuelGame() {
 
   function shell(children: ReactNode) {
     return (
-      <main className="min-h-screen bg-[#101a35] px-4 py-6 text-white sm:px-8 sm:py-8">
+      <main className="min-h-screen bg-[#162348] px-4 py-6 text-white sm:px-8 sm:py-8">
         <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
           {children}
         </div>
@@ -502,27 +504,33 @@ export function TimeDuelGame() {
   }
 
   return shell(
-    <section className="flex flex-1 flex-col py-2">
-      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-6 py-8">
-        <div className="grid w-full max-w-4xl items-stretch gap-4 md:grid-cols-[12rem_minmax(0,1fr)_15rem]">
-          <div className="flex h-full flex-col justify-center rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-center">
+    <section className="flex flex-1 flex-col py-1">
+      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
+        <div className="grid w-full max-w-3xl items-stretch gap-2 md:grid-cols-[8rem_minmax(0,1fr)_10rem]">
+          <div className="flex h-full flex-col justify-center rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-center">
             <p className="text-xs uppercase tracking-[0.3em] text-white/58">Round</p>
-            <p className="mt-2 text-5xl font-medium tracking-[-0.06em] text-white">
+            <p className="mt-0.5 text-3xl font-medium tracking-[-0.06em] text-white">
               {currentRound + 1}
             </p>
-            <p className="mt-1 text-sm text-white/68">of {totalRounds}</p>
+            <p className="mt-0.5 text-xs text-white/68">of {totalRounds}</p>
           </div>
 
-          <div className="min-w-0 rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-left">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/58">Photo description</p>
-            <p className="mt-2 break-words text-base leading-7 text-white/88 sm:text-lg">
-              {currentQuestion.photoCaption ?? currentQuestion.alt}
+          <div className="min-w-0 rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-left">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/58">
+              {currentGuess ? "Your result" : "Photo description"}
+            </p>
+            <p className="mt-1 break-words text-base leading-5 text-white/88">
+              {currentGuess
+                ? currentGuess.difference === 0
+                  ? `Exact hit. ${currentGuess.roundScore} points.`
+                  : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.correctAnswer}.`
+                : currentQuestion.photoCaption ?? currentQuestion.alt}
             </p>
           </div>
 
-          <div className="flex h-full flex-col justify-center rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-center">
+          <div className="flex h-full flex-col justify-center rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-center">
             <p className="text-xs uppercase tracking-[0.3em] text-white/58">Your guess year</p>
-            <div className="mt-2 flex justify-center">
+            <div className="mt-0.5 flex justify-center">
               <input
                 type="number"
                 inputMode="numeric"
@@ -547,59 +555,70 @@ export function TimeDuelGame() {
                 }}
                 disabled={Boolean(currentGuess)}
                 aria-label="Type an exact year"
-                className="w-40 border-0 bg-transparent text-center text-5xl font-medium tracking-[-0.08em] text-white outline-none sm:text-6xl disabled:cursor-default"
+                className="w-24 border-0 bg-transparent text-center text-3xl font-medium tracking-[-0.08em] text-white outline-none sm:text-4xl disabled:cursor-default"
               />
+            </div>
+            <div className="mt-1.5 flex justify-center">
+              {currentGuess ? (
+                <button
+                  type="button"
+                  onClick={advanceRound}
+                  className="rounded-[0.85rem] border-[3px] border-white px-4 py-1.5 text-lg font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
+                >
+                  {currentRound === totalRounds - 1 ? "See Results" : "Next Round"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGuess}
+                  className="rounded-[0.85rem] border-[3px] border-white px-4 py-1.5 text-lg font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
+                >
+                  Guess
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="w-full max-w-4xl">
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-[1.6rem] border-[4px] border-b-0 border-white bg-[#0a1126]">
-          <Image
-            src={currentQuestion.imageUrl}
-            alt={currentQuestion.alt}
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 900px"
-            className="object-contain"
-          />
+        <div className="w-full max-w-3xl">
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.4rem] border-[4px] border-white bg-[#132041]">
+            <Image
+              src={currentQuestion.imageUrl}
+              alt={currentQuestion.alt}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 900px"
+              className="object-contain"
+            />
           </div>
 
-          <YearTimeline
-            disabled={Boolean(currentGuess)}
-            selectedYear={currentGuess?.selectedYear ?? selectedYear}
-            onChange={setSelectedYear}
-            onSubmit={handleGuess}
-          />
+          <div className="mt-3">
+            <YearTimeline
+              disabled={Boolean(currentGuess)}
+              selectedYear={currentGuess?.selectedYear ?? selectedYear}
+              onChange={setSelectedYear}
+              revealedYear={currentGuess ? currentQuestion.correctAnswer : undefined}
+            />
+          </div>
         </div>
 
-        <div className="flex min-h-[9rem] w-full max-w-4xl flex-col items-center justify-start">
+        <div className="flex min-h-[5rem] w-full max-w-3xl flex-col items-center justify-start">
           {currentGuess ? (
             <div className="w-full max-w-2xl text-center">
-              <p className="text-lg text-white">
-                {currentGuess.difference === 0
-                  ? `Exact hit. ${currentGuess.roundScore} points.`
-                  : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.correctAnswer}.`}
-              </p>
-              <div className="mt-6 rounded-[1.35rem] border border-white/14 bg-white/6 px-5 py-4 text-left">
+              {/*
+              <div className="mt-4 rounded-[1.2rem] border border-white/14 bg-white/6 px-4 py-3 text-left">
                 <p className="text-sm text-white/88">timeduel.io {summaryDateLabel}</p>
-                <p className="mt-2 text-lg text-white">
+                <p className="mt-2 text-base text-white sm:text-lg">
                   {shareLine}
                 </p>
                 <p className="mt-2 text-sm text-white/72">Final score: {totalScore}</p>
               </div>
-              <button
-                type="button"
-                onClick={advanceRound}
-                className="mt-4 rounded-[1.15rem] border-[4px] border-white px-8 py-4 text-3xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
-              >
-                {currentRound === totalRounds - 1 ? "See Results" : "Next Round"}
-              </button>
+              */}
             </div>
           ) : null}
         </div>
 
-        <div className="min-h-[5.5rem] w-full max-w-4xl">
+        <div className="min-h-[2.5rem] w-full max-w-3xl">
           {currentGuess && currentQuestion.photoCredit ? (
             <div className="mx-auto w-full max-w-3xl text-center text-sm leading-6 text-white/74">
               <p className="font-medium text-white/88">{currentQuestion.photoCredit}</p>
