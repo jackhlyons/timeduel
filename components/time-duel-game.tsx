@@ -1,18 +1,38 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type TouchEvent,
+  type WheelEvent,
+} from "react";
 
 import { questions } from "@/data/questions";
 
 type GuessRecord = {
   questionId: number;
   selectedYear: number;
-  isCorrect: boolean;
+  difference: number;
+};
+
+type YearTimelineProps = {
+  disabled: boolean;
+  selectedYear: number;
+  onChange: (year: number) => void;
 };
 
 const rounds = questions.slice(0, 5);
 const totalRounds = rounds.length;
+const minimumYear = 1900;
+const maximumYear = 2026;
+const defaultTimelineYear = maximumYear;
+const minimumZoom = 4;
+const maximumZoom = 28;
+const defaultZoom = 8;
 const categories = [
   "Classic",
   "Football",
@@ -22,23 +42,270 @@ const categories = [
   "More...",
 ] as const;
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function touchDistance(
+  touchA: { clientX: number; clientY: number },
+  touchB: { clientX: number; clientY: number },
+) {
+  return Math.hypot(touchA.clientX - touchB.clientX, touchA.clientY - touchB.clientY);
+}
+
+function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const syncScrollRef = useRef(false);
+  const pinchStateRef = useRef<{
+    centerYear: number;
+    distance: number;
+    zoom: number;
+  } | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [pixelsPerYear, setPixelsPerYear] = useState(defaultZoom);
+
+  const yearSpan = maximumYear - minimumYear;
+  const years = Array.from({ length: yearSpan + 1 }, (_, index) => minimumYear + index);
+  const contentWidth = yearSpan * pixelsPerYear + viewportWidth;
+
+  const centerYearOnTimeline = useCallback(
+    (year: number, zoom = pixelsPerYear) => {
+      const viewport = viewportRef.current;
+
+      if (!viewport) {
+        return;
+      }
+
+      const nextScrollLeft = clamp(
+        (clamp(year, minimumYear, maximumYear) - minimumYear) * zoom,
+        0,
+        Math.max(0, yearSpan * zoom),
+      );
+
+      syncScrollRef.current = true;
+      viewport.scrollLeft = nextScrollLeft;
+      requestAnimationFrame(() => {
+        syncScrollRef.current = false;
+      });
+    },
+    [pixelsPerYear, yearSpan],
+  );
+
+  function updateZoom(nextZoom: number) {
+    const clampedZoom = clamp(nextZoom, minimumZoom, maximumZoom);
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      setPixelsPerYear(clampedZoom);
+      return;
+    }
+
+    const centeredYear = clamp(
+      minimumYear + viewport.scrollLeft / pixelsPerYear,
+      minimumYear,
+      maximumYear,
+    );
+
+    setPixelsPerYear(clampedZoom);
+
+    requestAnimationFrame(() => {
+      centerYearOnTimeline(centeredYear, clampedZoom);
+    });
+  }
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      setViewportWidth(viewport.clientWidth);
+    });
+
+    observer.observe(viewport);
+    setViewportWidth(viewport.clientWidth);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (viewportWidth === 0) {
+      return;
+    }
+
+    centerYearOnTimeline(selectedYear);
+  }, [centerYearOnTimeline, selectedYear, viewportWidth, pixelsPerYear]);
+
+  function handleScroll() {
+    const viewport = viewportRef.current;
+
+    if (!viewport || syncScrollRef.current) {
+      return;
+    }
+
+    const year = clamp(
+      Math.round(minimumYear + viewport.scrollLeft / pixelsPerYear),
+      minimumYear,
+      maximumYear,
+    );
+
+    if (year !== selectedYear) {
+      onChange(year);
+    }
+  }
+
+  function handleWheel(event: WheelEvent<HTMLDivElement>) {
+    if (!event.ctrlKey && !event.metaKey) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const zoomFactor = event.deltaY > 0 ? 0.92 : 1.08;
+    updateZoom(pixelsPerYear * zoomFactor);
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 2) {
+      pinchStateRef.current = null;
+      return;
+    }
+
+    const [touchA, touchB] = [event.touches[0], event.touches[1]];
+
+    pinchStateRef.current = {
+      centerYear: selectedYear,
+      distance: touchDistance(touchA, touchB),
+      zoom: pixelsPerYear,
+    };
+  }
+
+  function handleTouchMove(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 2 || !pinchStateRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const [touchA, touchB] = [event.touches[0], event.touches[1]];
+    const nextDistance = touchDistance(touchA, touchB);
+    const scale = nextDistance / pinchStateRef.current.distance;
+    const nextZoom = pinchStateRef.current.zoom * scale;
+
+    setPixelsPerYear(clamp(nextZoom, minimumZoom, maximumZoom));
+
+    requestAnimationFrame(() => {
+      centerYearOnTimeline(pinchStateRef.current?.centerYear ?? selectedYear, clamp(nextZoom, minimumZoom, maximumZoom));
+    });
+  }
+
+  function handleTouchEnd() {
+    pinchStateRef.current = null;
+  }
+
+  return (
+    <div className="min-w-0 w-full overflow-hidden rounded-[1.8rem] border-[4px] border-white px-5 py-6 sm:px-8">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-sm uppercase tracking-[0.32em] text-white/62">Your guess</p>
+          <p className="mt-2 text-6xl font-medium tracking-[-0.08em] text-white sm:text-7xl">
+            {selectedYear}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs uppercase tracking-[0.28em] text-white/52">Zoom</p>
+          <p className="mt-2 text-lg text-white/80">
+            {pixelsPerYear >= 18 ? "Years" : pixelsPerYear >= 9 ? "5-year" : "Decades"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#0a1126]/85 px-2 py-5">
+        <div className="mb-3 flex items-center justify-between px-3 text-[0.7rem] uppercase tracking-[0.3em] text-white/52">
+          <span>{minimumYear}</span>
+          <span>Pinch or ctrl-scroll to zoom</span>
+          <span>{maximumYear}</span>
+        </div>
+
+        <div className="relative max-w-full overflow-hidden rounded-[1.2rem] border border-white/10 bg-[#0b1530]">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent_23%,rgba(255,255,255,0.08)_24%,transparent_25%,transparent_73%,rgba(255,255,255,0.08)_74%,transparent_75%)]" />
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
+          <div className="pointer-events-none absolute left-1/2 top-0 z-20 h-full w-px -translate-x-1/2 bg-[#f7b63d]" />
+          <div className="pointer-events-none absolute left-1/2 top-3 z-20 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-white bg-[#f7b63d]" />
+
+          <div
+            ref={viewportRef}
+            onScroll={handleScroll}
+            onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className={[
+              "timeline-viewport relative h-32 max-w-full overflow-x-auto overflow-y-hidden",
+              disabled ? "pointer-events-none opacity-70" : "",
+            ].join(" ")}
+          >
+            <div className="relative h-full" style={{ width: `${contentWidth}px` }}>
+              {years.map((year) => {
+                const offset = (year - minimumYear) * pixelsPerYear + viewportWidth / 2;
+                const isDecade = year % 10 === 0;
+                const isHalfDecade = year % 5 === 0;
+                const tickHeight = isDecade ? 56 : isHalfDecade ? 38 : 20;
+                const showLabel = isDecade || year === minimumYear || year === maximumYear;
+
+                return (
+                  <div
+                    key={year}
+                    className="pointer-events-none absolute top-1/2"
+                    style={{ left: `${offset}px`, transform: "translate(-50%, -50%)" }}
+                  >
+                    <div
+                      className={[
+                        "w-px bg-white/70",
+                        isDecade ? "bg-white/95" : isHalfDecade ? "bg-white/75" : "bg-white/42",
+                      ].join(" ")}
+                      style={{ height: `${tickHeight}px` }}
+                    />
+                    {showLabel ? (
+                      <span className="absolute left-1/2 top-[calc(100%+0.55rem)] -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-white/68">
+                        {year}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 export function TimeDuelGame() {
   const [hasStarted, setHasStarted] = useState(false);
   const [currentRound, setCurrentRound] = useState(0);
   const [guesses, setGuesses] = useState<GuessRecord[]>([]);
+  const [selectedYear, setSelectedYear] = useState(defaultTimelineYear);
 
   const currentQuestion = rounds[currentRound];
   const currentGuess = guesses[currentRound];
-  const score = guesses.filter((guess) => guess.isCorrect).length;
+  const exactHits = guesses.filter((guess) => guess.difference === 0).length;
+  const totalError = guesses.reduce((sum, guess) => sum + guess.difference, 0);
+  const averageError = guesses.length > 0 ? Math.round(totalError / guesses.length) : 0;
   const isFinished = currentRound >= totalRounds;
 
   function startGame() {
     setHasStarted(true);
     setCurrentRound(0);
     setGuesses([]);
+    setSelectedYear(defaultTimelineYear);
   }
 
-  function handleGuess(selectedYear: number) {
+  function handleGuess() {
     if (!currentQuestion || currentGuess) {
       return;
     }
@@ -48,13 +315,14 @@ export function TimeDuelGame() {
       {
         questionId: currentQuestion.id,
         selectedYear,
-        isCorrect: selectedYear === currentQuestion.correctAnswer,
+        difference: Math.abs(selectedYear - currentQuestion.correctAnswer),
       },
     ]);
   }
 
   function advanceRound() {
     setCurrentRound((round) => round + 1);
+    setSelectedYear(defaultTimelineYear);
   }
 
   function renderBrand(lockupClassName = "") {
@@ -80,7 +348,7 @@ export function TimeDuelGame() {
     );
   }
 
-  function shell(children: React.ReactNode) {
+  function shell(children: ReactNode) {
     return (
       <main className="min-h-screen bg-[#101a35] px-4 py-6 text-white sm:px-8 sm:py-8">
         <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
@@ -98,16 +366,16 @@ export function TimeDuelGame() {
         <button
           type="button"
           onClick={startGame}
-          className="w-full max-w-5xl rounded-[1.35rem] border-[5px] border-white px-8 py-8 text-center text-5xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6 sm:px-12 sm:py-10 sm:text-8xl"
+          className="flex h-24 w-full max-w-5xl items-center justify-center rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-5xl font-medium tracking-[-0.06em] text-white transition hover:bg-white/6 sm:h-32 sm:px-5 sm:text-8xl"
         >
           Play Now
         </button>
 
-        <div className="grid w-full max-w-5xl grid-cols-2 justify-items-center gap-x-6 gap-y-7 sm:grid-cols-3">
+        <div className="grid w-full max-w-5xl grid-cols-2 gap-6 sm:grid-cols-3">
           {categories.map((category) => (
             <div
               key={category}
-              className="rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-2xl font-medium tracking-[-0.03em] text-white sm:min-w-[12rem] sm:px-5 sm:py-3 sm:text-5xl"
+              className="flex h-24 w-full items-center justify-center rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-2xl font-medium tracking-[-0.03em] text-white sm:h-32 sm:px-5 sm:text-5xl"
             >
               {category}
             </div>
@@ -124,15 +392,32 @@ export function TimeDuelGame() {
 
         <div className="rounded-[2rem] border-[4px] border-white p-6 sm:p-10">
           <p className="text-center text-sm uppercase tracking-[0.45em] text-white/70">
-            Final score
+            Final results
           </p>
-          <h1 className="mt-4 text-center text-6xl font-medium tracking-[-0.06em] text-white sm:text-8xl">
-            {score}/{totalRounds}
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-center text-lg text-white/78 sm:text-xl">
-            {score === totalRounds
+          <div className="mt-6 grid gap-4 text-center sm:grid-cols-3">
+            <div className="rounded-[1.4rem] border-[3px] border-white px-4 py-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/62">Exact hits</p>
+              <p className="mt-3 text-5xl font-medium tracking-[-0.06em] text-white">
+                {exactHits}
+              </p>
+            </div>
+            <div className="rounded-[1.4rem] border-[3px] border-white px-4 py-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/62">Total error</p>
+              <p className="mt-3 text-5xl font-medium tracking-[-0.06em] text-white">
+                {totalError}
+              </p>
+            </div>
+            <div className="rounded-[1.4rem] border-[3px] border-white px-4 py-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/62">Avg. miss</p>
+              <p className="mt-3 text-5xl font-medium tracking-[-0.06em] text-white">
+                {averageError}
+              </p>
+            </div>
+          </div>
+          <p className="mx-auto mt-6 max-w-xl text-center text-lg text-white/78 sm:text-xl">
+            {totalError === 0
               ? "Perfect run."
-              : "Run it back and see if you can improve the score."}
+              : "Lower your year error on the next run."}
           </p>
 
           <div className="mt-8 grid gap-3">
@@ -149,6 +434,7 @@ export function TimeDuelGame() {
                   </span>
                   <span className="text-white">
                     {guess?.selectedYear ?? "No guess"} / {question.correctAnswer}
+                    {guess ? ` (${guess.difference} off)` : ""}
                   </span>
                 </div>
               );
@@ -176,12 +462,14 @@ export function TimeDuelGame() {
           <p className="text-sm uppercase tracking-[0.38em] text-white/70">
             Round {currentRound + 1} of {totalRounds}
           </p>
-          <p className="mt-2 text-base text-white/82">Guess the year from the photo.</p>
+          <p className="mt-2 text-base text-white/82">
+            Scroll the timeline and line up the year under the center marker.
+          </p>
         </div>
         <div className="text-right">
-          <p className="text-sm uppercase tracking-[0.38em] text-white/70">Score</p>
+          <p className="text-sm uppercase tracking-[0.38em] text-white/70">Total error</p>
           <p className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white">
-            {score}
+            {totalError}
           </p>
         </div>
       </header>
@@ -198,41 +486,19 @@ export function TimeDuelGame() {
           />
         </div>
 
-        <div className="grid w-full max-w-4xl gap-4 sm:grid-cols-3">
-          {currentQuestion.options.map((option) => {
-            const isSelected = currentGuess?.selectedYear === option;
-            const isCorrect = option === currentQuestion.correctAnswer;
-            const showResult = Boolean(currentGuess);
+        <YearTimeline
+          disabled={Boolean(currentGuess)}
+          selectedYear={currentGuess?.selectedYear ?? selectedYear}
+          onChange={setSelectedYear}
+        />
 
-            return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => handleGuess(option)}
-                disabled={showResult}
-                className={[
-                  "rounded-[1.25rem] border-[4px] px-4 py-5 text-4xl font-medium tracking-[-0.04em] transition",
-                  showResult && isCorrect
-                    ? "border-[#6fe6a4] bg-[#6fe6a4]/15 text-[#d9ffe9]"
-                    : showResult && isSelected
-                      ? "border-[#ff8d8d] bg-[#ff8d8d]/12 text-[#ffe3e3]"
-                      : "border-white text-white hover:bg-white/6",
-                  showResult ? "cursor-default" : "cursor-pointer",
-                ].join(" ")}
-              >
-                {option}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex min-h-[9rem] w-full max-w-4xl items-start justify-center">
+        <div className="flex min-h-[9rem] w-full max-w-4xl flex-col items-center justify-start">
           {currentGuess ? (
             <div className="w-full max-w-2xl text-center">
               <p className="text-lg text-white">
-                {currentGuess.isCorrect
-                  ? "Correct."
-                  : `Wrong. The correct year was ${currentQuestion.correctAnswer}.`}
+                {currentGuess.difference === 0
+                  ? "Exact hit."
+                  : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. The correct year was ${currentQuestion.correctAnswer}.`}
               </p>
               <button
                 type="button"
@@ -242,7 +508,15 @@ export function TimeDuelGame() {
                 {currentRound === totalRounds - 1 ? "See Results" : "Next Round"}
               </button>
             </div>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={handleGuess}
+              className="rounded-[1.15rem] border-[4px] border-white px-8 py-4 text-3xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
+            >
+              Lock In Year
+            </button>
+          )}
         </div>
 
         <div className="min-h-[5.5rem] w-full max-w-4xl">

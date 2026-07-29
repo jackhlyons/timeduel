@@ -33,6 +33,16 @@ button {
   font: inherit;
 }
 
+.timeline-viewport {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-x;
+}
+
+.timeline-viewport::-webkit-scrollbar {
+  display: none;
+}
+
 ::selection {
   background: rgba(255, 255, 255, 0.24);
 }
