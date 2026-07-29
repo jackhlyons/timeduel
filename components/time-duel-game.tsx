@@ -97,7 +97,6 @@ function getScoreEmoji(score: number) {
 }
 
 function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimelineProps) {
-  const yearInputRef = useRef<HTMLInputElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const syncScrollRef = useRef(false);
   const pinchStateRef = useRef<{
@@ -182,14 +181,6 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimeli
     centerYearOnTimeline(selectedYear);
   }, [centerYearOnTimeline, selectedYear, viewportWidth, pixelsPerYear]);
 
-  useEffect(() => {
-    if (!yearInputRef.current) {
-      return;
-    }
-
-    yearInputRef.current.value = String(selectedYear);
-  }, [selectedYear]);
-
   function handleScroll() {
     const viewport = viewportRef.current;
 
@@ -257,93 +248,16 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimeli
     pinchStateRef.current = null;
   }
 
-  function commitInputValue() {
-    const nextValue = yearInputRef.current?.value ?? "";
-
-    if (nextValue.trim() === "") {
-      if (yearInputRef.current) {
-        yearInputRef.current.value = String(selectedYear);
-      }
-
-      return;
-    }
-
-    const nextYear = clamp(Number.parseInt(nextValue, 10), minimumYear, maximumYear);
-
-    if (Number.isNaN(nextYear)) {
-      if (yearInputRef.current) {
-        yearInputRef.current.value = String(selectedYear);
-      }
-
-      return;
-    }
-
-    onChange(nextYear);
-
-    if (yearInputRef.current) {
-      yearInputRef.current.value = String(nextYear);
-    }
-  }
-
-  function handleInputChange() {
-    const nextValue = yearInputRef.current?.value ?? "";
-
-    if (nextValue.trim() === "") {
-      return;
-    }
-
-    const parsedYear = Number.parseInt(nextValue, 10);
-
-    if (Number.isNaN(parsedYear)) {
-      return;
-    }
-
-    if (nextValue.length < 4) {
-      return;
-    }
-
-    const nextYear = clamp(parsedYear, minimumYear, maximumYear);
-
-    if (nextYear !== selectedYear) {
-      onChange(nextYear);
-    }
-  }
-
   return (
-    <div className="min-w-0 w-full overflow-hidden rounded-[1.8rem] border-[4px] border-white px-5 py-6 sm:px-8">
-      <div className="text-center">
-        <p className="text-sm uppercase tracking-[0.32em] text-white/62">Your guess year</p>
-        <div className="mt-2 flex justify-center">
-          <input
-            ref={yearInputRef}
-            type="number"
-            inputMode="numeric"
-            min={minimumYear}
-            max={maximumYear}
-            step={1}
-            defaultValue={selectedYear}
-            onChange={handleInputChange}
-            onBlur={commitInputValue}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                commitInputValue();
-              }
-            }}
-            disabled={disabled}
-            aria-label="Type an exact year"
-            className="w-44 border-0 bg-transparent text-center text-6xl font-medium tracking-[-0.08em] text-white outline-none sm:text-7xl disabled:cursor-default"
-          />
-        </div>
-      </div>
-
-      <div className="mt-4 overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#0a1126]/85 px-2 py-5">
+    <div className="w-full overflow-hidden rounded-b-[1.6rem] border-[4px] border-t-0 border-white bg-[#0a1126]/85 px-2 py-5">
+      <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-[#0b1530]">
         <div className="mb-3 flex items-center justify-between px-3 text-[0.7rem] uppercase tracking-[0.3em] text-white/52">
           <span>{minimumYear}</span>
           <span>Pinch or ctrl-scroll to zoom</span>
           <span>{maximumYear}</span>
         </div>
 
-        <div className="relative max-w-full overflow-hidden rounded-[1.2rem] border border-white/10 bg-[#0b1530]">
+        <div className="relative max-w-full overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent_23%,rgba(255,255,255,0.08)_24%,transparent_25%,transparent_73%,rgba(255,255,255,0.08)_74%,transparent_75%)]" />
           <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
           <div className="pointer-events-none absolute left-1/2 top-0 z-20 h-full w-px -translate-x-1/2 bg-[#f7b63d]" />
@@ -589,33 +503,58 @@ export function TimeDuelGame() {
 
   return shell(
     <section className="flex flex-1 flex-col py-2">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm uppercase tracking-[0.38em] text-white/70">
-            Round {currentRound + 1} of {totalRounds}
-          </p>
-          <p className="mt-2 text-base text-white/82">
-            Scroll the timeline and line up the year under the center marker.
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm uppercase tracking-[0.38em] text-white/70">Round total</p>
-          <p className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white">
-            {rawScore}
-          </p>
-          <p className="mt-1 text-sm text-white/60">/ {totalRounds * maximumRoundScore}</p>
-        </div>
-      </header>
+      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-6 py-8">
+        <div className="grid w-full max-w-4xl items-stretch gap-4 md:grid-cols-[12rem_minmax(0,1fr)_15rem]">
+          <div className="flex h-full flex-col justify-center rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-center">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/58">Round</p>
+            <p className="mt-2 text-5xl font-medium tracking-[-0.06em] text-white">
+              {currentRound + 1}
+            </p>
+            <p className="mt-1 text-sm text-white/68">of {totalRounds}</p>
+          </div>
 
-      <div className="grid flex-1 grid-rows-[auto_auto_auto_auto_1fr] justify-items-center gap-6 py-8">
-        <div className="w-full max-w-4xl rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/58">Photo description</p>
-          <p className="mt-2 text-base leading-7 text-white/88 sm:text-lg">
-            {currentQuestion.photoCaption ?? currentQuestion.alt}
-          </p>
+          <div className="min-w-0 rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-left">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/58">Photo description</p>
+            <p className="mt-2 break-words text-base leading-7 text-white/88 sm:text-lg">
+              {currentQuestion.photoCaption ?? currentQuestion.alt}
+            </p>
+          </div>
+
+          <div className="flex h-full flex-col justify-center rounded-[1.25rem] border border-white/14 bg-white/6 px-5 py-4 text-center">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/58">Your guess year</p>
+            <div className="mt-2 flex justify-center">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={minimumYear}
+                max={maximumYear}
+                step={1}
+                value={currentGuess?.selectedYear ?? selectedYear}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+
+                  if (nextValue.trim() === "") {
+                    return;
+                  }
+
+                  const parsedYear = Number.parseInt(nextValue, 10);
+
+                  if (Number.isNaN(parsedYear)) {
+                    return;
+                  }
+
+                  setSelectedYear(clamp(parsedYear, minimumYear, maximumYear));
+                }}
+                disabled={Boolean(currentGuess)}
+                aria-label="Type an exact year"
+                className="w-40 border-0 bg-transparent text-center text-5xl font-medium tracking-[-0.08em] text-white outline-none sm:text-6xl disabled:cursor-default"
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="relative aspect-[4/3] w-full max-w-4xl overflow-hidden rounded-[1.6rem] border-[4px] border-white bg-[#0a1126]">
+        <div className="w-full max-w-4xl">
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-[1.6rem] border-[4px] border-b-0 border-white bg-[#0a1126]">
           <Image
             src={currentQuestion.imageUrl}
             alt={currentQuestion.alt}
@@ -624,14 +563,15 @@ export function TimeDuelGame() {
             sizes="(max-width: 1024px) 100vw, 900px"
             className="object-contain"
           />
-        </div>
+          </div>
 
-        <YearTimeline
-          disabled={Boolean(currentGuess)}
-          selectedYear={currentGuess?.selectedYear ?? selectedYear}
-          onChange={setSelectedYear}
-          onSubmit={handleGuess}
-        />
+          <YearTimeline
+            disabled={Boolean(currentGuess)}
+            selectedYear={currentGuess?.selectedYear ?? selectedYear}
+            onChange={setSelectedYear}
+            onSubmit={handleGuess}
+          />
+        </div>
 
         <div className="flex min-h-[9rem] w-full max-w-4xl flex-col items-center justify-start">
           {currentGuess ? (
