@@ -37,6 +37,7 @@ const defaultZoom = 8;
 const maximumRoundScore = 100;
 const finalScoreMultiplier = 2;
 const scoreFadeYears = 50;
+const summaryDateLabel = "July 29";
 const categories = [
   "Classic",
   "Football",
@@ -62,7 +63,40 @@ function getRoundScore(difference: number) {
   return Math.round(normalized * maximumRoundScore);
 }
 
+function getScoreEmoji(score: number) {
+  if (score >= 98) {
+    return "🎯";
+  }
+
+  if (score >= 92) {
+    return "👑";
+  }
+
+  if (score >= 88) {
+    return "🏅";
+  }
+
+  if (score >= 75) {
+    return "🎉";
+  }
+
+  if (score >= 55) {
+    return "😅";
+  }
+
+  if (score >= 35) {
+    return "😬";
+  }
+
+  if (score >= 15) {
+    return "😕";
+  }
+
+  return "😵";
+}
+
 function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
+  const yearInputRef = useRef<HTMLInputElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const syncScrollRef = useRef(false);
   const pinchStateRef = useRef<{
@@ -147,6 +181,14 @@ function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
     centerYearOnTimeline(selectedYear);
   }, [centerYearOnTimeline, selectedYear, viewportWidth, pixelsPerYear]);
 
+  useEffect(() => {
+    if (!yearInputRef.current) {
+      return;
+    }
+
+    yearInputRef.current.value = String(selectedYear);
+  }, [selectedYear]);
+
   function handleScroll() {
     const viewport = viewportRef.current;
 
@@ -214,15 +256,86 @@ function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
     pinchStateRef.current = null;
   }
 
+  function commitInputValue() {
+    const nextValue = yearInputRef.current?.value ?? "";
+
+    if (nextValue.trim() === "") {
+      if (yearInputRef.current) {
+        yearInputRef.current.value = String(selectedYear);
+      }
+
+      return;
+    }
+
+    const nextYear = clamp(Number.parseInt(nextValue, 10), minimumYear, maximumYear);
+
+    if (Number.isNaN(nextYear)) {
+      if (yearInputRef.current) {
+        yearInputRef.current.value = String(selectedYear);
+      }
+
+      return;
+    }
+
+    onChange(nextYear);
+
+    if (yearInputRef.current) {
+      yearInputRef.current.value = String(nextYear);
+    }
+  }
+
+  function handleInputChange() {
+    const nextValue = yearInputRef.current?.value ?? "";
+
+    if (nextValue.trim() === "") {
+      return;
+    }
+
+    const parsedYear = Number.parseInt(nextValue, 10);
+
+    if (Number.isNaN(parsedYear)) {
+      return;
+    }
+
+    if (nextValue.length < 4) {
+      return;
+    }
+
+    const nextYear = clamp(parsedYear, minimumYear, maximumYear);
+
+    if (nextYear !== selectedYear) {
+      onChange(nextYear);
+    }
+  }
+
   return (
     <div className="min-w-0 w-full overflow-hidden rounded-[1.8rem] border-[4px] border-white px-5 py-6 sm:px-8">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-sm uppercase tracking-[0.32em] text-white/62">Your guess</p>
-          <p className="mt-2 text-6xl font-medium tracking-[-0.08em] text-white sm:text-7xl">
-            {selectedYear}
-          </p>
+      <div className="text-center">
+        <p className="text-sm uppercase tracking-[0.32em] text-white/62">Your guess year</p>
+        <div className="mt-2 flex justify-center">
+          <input
+            ref={yearInputRef}
+            type="number"
+            inputMode="numeric"
+            min={minimumYear}
+            max={maximumYear}
+            step={1}
+            defaultValue={selectedYear}
+            onChange={handleInputChange}
+            onBlur={commitInputValue}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                commitInputValue();
+              }
+            }}
+            disabled={disabled}
+            aria-label="Type an exact year"
+            className="w-44 border-0 bg-transparent text-center text-6xl font-medium tracking-[-0.08em] text-white outline-none sm:text-7xl disabled:cursor-default"
+          />
         </div>
+      </div>
+
+      <div className="mt-2 flex items-end justify-end gap-4">
         <div className="text-right">
           <p className="text-xs uppercase tracking-[0.28em] text-white/52">Zoom</p>
           <p className="mt-2 text-lg text-white/80">
@@ -231,7 +344,7 @@ function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
         </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#0a1126]/85 px-2 py-5">
+      <div className="mt-3 overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#0a1126]/85 px-2 py-5">
         <div className="mb-3 flex items-center justify-between px-3 text-[0.7rem] uppercase tracking-[0.3em] text-white/52">
           <span>{minimumYear}</span>
           <span>Pinch or ctrl-scroll to zoom</span>
@@ -307,6 +420,9 @@ export function TimeDuelGame() {
   const totalScore = rawScore * finalScoreMultiplier;
   const averageScore = guesses.length > 0 ? Math.round(rawScore / guesses.length) : 0;
   const isFinished = currentRound >= totalRounds;
+  const shareLine = guesses
+    .map((guess) => `${guess.roundScore}${getScoreEmoji(guess.roundScore)}`)
+    .join(" ");
 
   function startGame() {
     setHasStarted(true);
@@ -521,6 +637,13 @@ export function TimeDuelGame() {
                   ? `Exact hit. ${currentGuess.roundScore} points.`
                   : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.correctAnswer}.`}
               </p>
+              <div className="mt-6 rounded-[1.35rem] border border-white/14 bg-white/6 px-5 py-4 text-left">
+                <p className="text-sm text-white/88">timeduel.io {summaryDateLabel}</p>
+                <p className="mt-2 text-lg text-white">
+                  {shareLine}
+                </p>
+                <p className="mt-2 text-sm text-white/72">Final score: {totalScore}</p>
+              </div>
               <button
                 type="button"
                 onClick={advanceRound}
