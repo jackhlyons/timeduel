@@ -24,6 +24,7 @@ type YearTimelineProps = {
   disabled: boolean;
   selectedYear: number;
   onChange: (year: number) => void;
+  onSubmit: () => void;
 };
 
 const rounds = questions.slice(0, 5);
@@ -95,7 +96,7 @@ function getScoreEmoji(score: number) {
   return "😵";
 }
 
-function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
+function YearTimeline({ disabled, selectedYear, onChange, onSubmit }: YearTimelineProps) {
   const yearInputRef = useRef<HTMLInputElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const syncScrollRef = useRef(false);
@@ -335,16 +336,7 @@ function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
         </div>
       </div>
 
-      <div className="mt-2 flex items-end justify-end gap-4">
-        <div className="text-right">
-          <p className="text-xs uppercase tracking-[0.28em] text-white/52">Zoom</p>
-          <p className="mt-2 text-lg text-white/80">
-            {pixelsPerYear >= 18 ? "Years" : pixelsPerYear >= 9 ? "5-year" : "Decades"}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-3 overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#0a1126]/85 px-2 py-5">
+      <div className="mt-4 overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#0a1126]/85 px-2 py-5">
         <div className="mb-3 flex items-center justify-between px-3 text-[0.7rem] uppercase tracking-[0.3em] text-white/52">
           <span>{minimumYear}</span>
           <span>Pinch or ctrl-scroll to zoom</span>
@@ -401,6 +393,17 @@ function YearTimeline({ disabled, selectedYear, onChange }: YearTimelineProps) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={disabled}
+          className="rounded-[1.15rem] border-[4px] border-white px-8 py-4 text-3xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6 disabled:cursor-default disabled:opacity-70"
+        >
+          Guess
+        </button>
       </div>
 
     </div>
@@ -495,7 +498,7 @@ export function TimeDuelGame() {
         <button
           type="button"
           onClick={startGame}
-          className="flex h-24 w-full max-w-5xl items-center justify-center rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-5xl font-medium tracking-[-0.06em] text-white transition hover:bg-white/6 sm:h-32 sm:px-5 sm:text-8xl"
+          className="flex h-24 w-full max-w-5xl items-center justify-center rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-6xl font-medium tracking-[-0.06em] text-white transition hover:bg-white/6 sm:h-32 sm:px-5 sm:text-9xl"
         >
           Play Now
         </button>
@@ -627,6 +630,7 @@ export function TimeDuelGame() {
           disabled={Boolean(currentGuess)}
           selectedYear={currentGuess?.selectedYear ?? selectedYear}
           onChange={setSelectedYear}
+          onSubmit={handleGuess}
         />
 
         <div className="flex min-h-[9rem] w-full max-w-4xl flex-col items-center justify-start">
@@ -652,15 +656,7 @@ export function TimeDuelGame() {
                 {currentRound === totalRounds - 1 ? "See Results" : "Next Round"}
               </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleGuess}
-              className="rounded-[1.15rem] border-[4px] border-white px-8 py-4 text-3xl font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
-            >
-              Lock In Year
-            </button>
-          )}
+          ) : null}
         </div>
 
         <div className="min-h-[5.5rem] w-full max-w-4xl">
