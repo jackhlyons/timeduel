@@ -64,7 +64,7 @@ function getRoundScore(difference: number) {
 }
 
 function getScoreEmoji(score: number) {
-  if (score >= 98) {
+  if (score == 100) {
     return "🎯";
   }
 
