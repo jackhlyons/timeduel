@@ -24,6 +24,7 @@ type YearTimelineProps = {
   disabled: boolean;
   selectedYear: number;
   onChange: (year: number) => void;
+  onSubmit: () => void;
   revealedYear?: number;
 };
 
@@ -38,7 +39,6 @@ const defaultZoom = 8;
 const maximumRoundScore = 100;
 const finalScoreMultiplier = 2;
 const scoreFadeYears = 50;
-const summaryDateLabel = "July 29";
 const categories = [
   "Classic",
   "Football",
@@ -64,39 +64,19 @@ function getRoundScore(difference: number) {
   return Math.round(normalized * maximumRoundScore);
 }
 
-function getScoreEmoji(score: number) {
-  if (score == 100) {
-    return "🎯";
+function getRoundBadge(roundIndex: number) {
+  if (roundIndex <= 1) {
+    return { label: "easy", className: "bg-[#2f8f4e]" };
   }
 
-  if (score >= 92) {
-    return "👑";
+  if (roundIndex === 2) {
+    return { label: "medium", className: "bg-[#d3a72c]" };
   }
 
-  if (score >= 88) {
-    return "🏅";
-  }
-
-  if (score >= 75) {
-    return "🎉";
-  }
-
-  if (score >= 55) {
-    return "😅";
-  }
-
-  if (score >= 35) {
-    return "😬";
-  }
-
-  if (score >= 15) {
-    return "😕";
-  }
-
-  return "😵";
+  return { label: "hard", className: "bg-[#cf6f2d]" };
 }
 
-function YearTimeline({ disabled, selectedYear, onChange, revealedYear }: YearTimelineProps) {
+function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear }: YearTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const syncScrollRef = useRef(false);
   const pinchStateRef = useRef<{
@@ -261,7 +241,16 @@ function YearTimeline({ disabled, selectedYear, onChange, revealedYear }: YearTi
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent_23%,rgba(255,255,255,0.08)_24%,transparent_25%,transparent_73%,rgba(255,255,255,0.08)_74%,transparent_75%)]" />
           <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
           <div className="pointer-events-none absolute left-1/2 top-0 z-20 h-full w-px -translate-x-1/2 bg-[#f7b63d]" />
-          <div className="pointer-events-none absolute left-1/2 top-3 z-20 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-white bg-[#f7b63d]" />
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={disabled}
+            aria-label={`Guess ${selectedYear}`}
+            className={[
+              "absolute left-1/2 top-3 z-30 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-[#f7b63d] transition",
+              disabled ? "cursor-default opacity-70" : "cursor-pointer hover:scale-110 active:scale-95",
+            ].join(" ")}
+          />
 
           <div
             ref={viewportRef}
@@ -285,7 +274,7 @@ function YearTimeline({ disabled, selectedYear, onChange, revealedYear }: YearTi
                   }}
                 >
                   <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[#39d353]" />
-                  <div className="absolute left-1/2 top-3 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-white bg-[#39d353]" />
+                  <div className="absolute left-1/2 top-3 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-[#39d353]" />
                 </div>
               ) : null}
 
@@ -334,15 +323,12 @@ export function TimeDuelGame() {
 
   const currentQuestion = rounds[currentRound];
   const currentGuess = guesses[currentRound];
+  const roundBadge = getRoundBadge(currentRound);
   const exactHits = guesses.filter((guess) => guess.difference === 0).length;
   const rawScore = guesses.reduce((sum, guess) => sum + guess.roundScore, 0);
   const totalScore = rawScore * finalScoreMultiplier;
   const averageScore = guesses.length > 0 ? Math.round(rawScore / guesses.length) : 0;
   const isFinished = currentRound >= totalRounds;
-  const shareLine = guesses
-    .map((guess) => `${guess.roundScore}${getScoreEmoji(guess.roundScore)}`)
-    .join(" ");
-
   function startGame() {
     setHasStarted(true);
     setCurrentRound(0);
@@ -505,61 +491,34 @@ export function TimeDuelGame() {
 
   return shell(
     <section className="flex flex-1 flex-col py-1">
-      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
-        <div className="grid w-full max-w-3xl items-stretch gap-2 md:grid-cols-[8rem_minmax(0,1fr)_10rem]">
-          <div className="flex h-full flex-col justify-center rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-center">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/58">Round</p>
-            <p className="mt-0.5 text-3xl font-medium tracking-[-0.06em] text-white">
-              {currentRound + 1}
-            </p>
-            <p className="mt-0.5 text-xs text-white/68">of {totalRounds}</p>
-          </div>
+      <div className="mb-3 flex justify-center">
+        <div
+          className={[
+            "rounded-full border border-white/18 px-4 py-1.5 text-center shadow-[0_8px_20px_rgba(0,0,0,0.14)]",
+            roundBadge.className,
+          ].join(" ")}
+        >
+          <p className="text-sm font-medium tracking-[-0.03em] text-white">
+            Round {currentRound + 1} ({roundBadge.label}) out of {totalRounds}
+          </p>
+        </div>
+      </div>
 
-          <div className="min-w-0 rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-left">
+      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
+        <div className="w-full max-w-3xl">
+          <div className="relative min-w-0 rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-left">
             <p className="text-xs uppercase tracking-[0.3em] text-white/58">
               {currentGuess ? "Your result" : "Photo description"}
             </p>
-            <p className="mt-1 break-words text-base leading-5 text-white/88">
+            <p className="mt-1 break-words pr-32 text-base leading-5 text-white/88">
               {currentGuess
                 ? currentGuess.difference === 0
                   ? `Exact hit. ${currentGuess.roundScore} points.`
                   : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.correctAnswer}.`
                 : currentQuestion.photoCaption ?? currentQuestion.alt}
             </p>
-          </div>
-
-          <div className="flex h-full flex-col justify-center rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-center">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/58">Your guess year</p>
-            <div className="mt-0.5 flex justify-center">
-              <input
-                type="number"
-                inputMode="numeric"
-                min={minimumYear}
-                max={maximumYear}
-                step={1}
-                value={currentGuess?.selectedYear ?? selectedYear}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-
-                  if (nextValue.trim() === "") {
-                    return;
-                  }
-
-                  const parsedYear = Number.parseInt(nextValue, 10);
-
-                  if (Number.isNaN(parsedYear)) {
-                    return;
-                  }
-
-                  setSelectedYear(clamp(parsedYear, minimumYear, maximumYear));
-                }}
-                disabled={Boolean(currentGuess)}
-                aria-label="Type an exact year"
-                className="w-24 border-0 bg-transparent text-center text-3xl font-medium tracking-[-0.08em] text-white outline-none sm:text-4xl disabled:cursor-default"
-              />
-            </div>
-            <div className="mt-1.5 flex justify-center">
-              {currentGuess ? (
+            {currentGuess ? (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <button
                   type="button"
                   onClick={advanceRound}
@@ -567,16 +526,8 @@ export function TimeDuelGame() {
                 >
                   {currentRound === totalRounds - 1 ? "See Results" : "Next Round"}
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleGuess}
-                  className="rounded-[0.85rem] border-[3px] border-white px-4 py-1.5 text-lg font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
-                >
-                  Guess
-                </button>
-              )}
-            </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -590,33 +541,26 @@ export function TimeDuelGame() {
               sizes="(max-width: 1024px) 100vw, 900px"
               className="object-contain"
             />
+            <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/18 bg-[#101a35]/92 px-5 py-1.5 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
+              <p className="text-[0.58rem] uppercase tracking-[0.26em] text-white/55">Year</p>
+              <p className="mt-0.5 text-2xl font-medium tracking-[-0.06em] text-white">
+                {currentGuess?.selectedYear ?? selectedYear}
+              </p>
+            </div>
           </div>
 
-          <div className="mt-3">
+          <div className="mt-4">
             <YearTimeline
               disabled={Boolean(currentGuess)}
               selectedYear={currentGuess?.selectedYear ?? selectedYear}
               onChange={setSelectedYear}
+              onSubmit={handleGuess}
               revealedYear={currentGuess ? currentQuestion.correctAnswer : undefined}
             />
           </div>
         </div>
 
-        <div className="flex min-h-[5rem] w-full max-w-3xl flex-col items-center justify-start">
-          {currentGuess ? (
-            <div className="w-full max-w-2xl text-center">
-              {/*
-              <div className="mt-4 rounded-[1.2rem] border border-white/14 bg-white/6 px-4 py-3 text-left">
-                <p className="text-sm text-white/88">timeduel.io {summaryDateLabel}</p>
-                <p className="mt-2 text-base text-white sm:text-lg">
-                  {shareLine}
-                </p>
-                <p className="mt-2 text-sm text-white/72">Final score: {totalScore}</p>
-              </div>
-              */}
-            </div>
-          ) : null}
-        </div>
+        <div className="min-h-[1rem] w-full max-w-3xl" />
 
         <div className="min-h-[2.5rem] w-full max-w-3xl">
           {currentGuess && currentQuestion.photoCredit ? (
