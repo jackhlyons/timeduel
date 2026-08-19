@@ -89,6 +89,45 @@ function getRoundBadge(roundIndex: number) {
   return { label: "hard", className: "bg-[#cf6f2d]" };
 }
 
+function getShareScoreEmoji(score: number) {
+  if (score === 100) {
+    return "🎯";
+  }
+
+  if (score >= 92) {
+    return "👑";
+  }
+
+  if (score >= 88) {
+    return "🏅";
+  }
+
+  if (score >= 75) {
+    return "🎉";
+  }
+
+  if (score >= 55) {
+    return "😅";
+  }
+
+  if (score >= 35) {
+    return "😬";
+  }
+
+  if (score >= 15) {
+    return "😕";
+  }
+
+  return "😵";
+}
+
+function getShareDateLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+  });
+}
+
 function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear }: YearTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const syncScrollRef = useRef(false);
@@ -427,6 +466,7 @@ export function TimeDuelGame() {
   const [currentRound, setCurrentRound] = useState(0);
   const [guesses, setGuesses] = useState<GuessRecord[]>([]);
   const [selectedYear, setSelectedYear] = useState(defaultTimelineYear);
+  const [shareCopyState, setShareCopyState] = useState<"idle" | "copied" | "error">("idle");
 
   const currentQuestion = rounds[currentRound];
   const currentGuess = guesses[currentRound];
@@ -437,11 +477,31 @@ export function TimeDuelGame() {
   const averageScore = guesses.length > 0 ? Math.round(rawScore / guesses.length) : 0;
   const isFinished = currentRound >= totalRounds;
   const isExactHitRound = currentGuess?.difference === 0;
+  const shareDateLabel = getShareDateLabel(new Date());
+  const shareEmojiRow = guesses
+    .map((guess) => `${guess.roundScore}${getShareScoreEmoji(guess.roundScore)}`)
+    .join(" ");
+  const shareScoreText = [
+    `www.timeduel.io ${shareDateLabel}`,
+    shareEmojiRow,
+    `Final score: ${totalScore}`,
+  ].join("\n");
+
+  async function handleCopyScore() {
+    try {
+      await navigator.clipboard.writeText(shareScoreText);
+      setShareCopyState("copied");
+    } catch {
+      setShareCopyState("error");
+    }
+  }
+
   function startGame() {
     setHasStarted(true);
     setCurrentRound(0);
     setGuesses([]);
     setSelectedYear(defaultTimelineYear);
+    setShareCopyState("idle");
   }
 
   function handleGuess() {
@@ -561,6 +621,21 @@ export function TimeDuelGame() {
               ? "Perfect run."
               : "Push for a higher score on the next run."}
           </p>
+
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCopyScore}
+              className="rounded-[1rem] border-[3px] border-white px-6 py-3 text-lg font-medium tracking-[-0.03em] text-white transition hover:bg-white/6"
+            >
+              {shareCopyState === "copied" ? "Score Copied" : "Copy Share Score"}
+            </button>
+            <p className="text-center text-sm text-white/66">
+              {shareCopyState === "error"
+                ? "Clipboard copy failed. Try again."
+                : `Share format: ${shareEmojiRow}`}
+            </p>
+          </div>
 
           <div className="mt-8 grid gap-3">
             {rounds.map((question, index) => {
