@@ -89,10 +89,21 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
 
   const yearSpan = maximumYear - minimumYear;
   const years = Array.from({ length: yearSpan + 1 }, (_, index) => minimumYear + index);
-  const contentWidth = yearSpan * pixelsPerYear + viewportWidth;
+  const revealFittedZoom =
+    typeof revealedYear === "number" && viewportWidth > 0
+      ? clamp(
+          (viewportWidth * 0.62) / Math.max(1, Math.abs(revealedYear - selectedYear)),
+          minimumZoom,
+          defaultZoom,
+        )
+      : null;
+  const effectivePixelsPerYear = revealFittedZoom ?? pixelsPerYear;
+  const contentWidth = yearSpan * effectivePixelsPerYear + viewportWidth;
+  const revealedMidpoint =
+    typeof revealedYear === "number" ? (selectedYear + revealedYear) / 2 : null;
 
   const centerYearOnTimeline = useCallback(
-    (year: number, zoom = pixelsPerYear) => {
+    (year: number, zoom: number) => {
       const viewport = viewportRef.current;
 
       if (!viewport) {
@@ -111,7 +122,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
         syncScrollRef.current = false;
       });
     },
-    [pixelsPerYear, yearSpan],
+    [yearSpan],
   );
 
   function updateZoom(nextZoom: number) {
@@ -124,7 +135,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
     }
 
     const centeredYear = clamp(
-      minimumYear + viewport.scrollLeft / pixelsPerYear,
+      minimumYear + viewport.scrollLeft / effectivePixelsPerYear,
       minimumYear,
       maximumYear,
     );
@@ -158,18 +169,25 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
       return;
     }
 
-    centerYearOnTimeline(selectedYear);
-  }, [centerYearOnTimeline, selectedYear, viewportWidth, pixelsPerYear]);
+    if (typeof revealedYear === "number") {
+      const midpoint = (selectedYear + revealedYear) / 2;
+
+      centerYearOnTimeline(midpoint, revealFittedZoom ?? effectivePixelsPerYear);
+      return;
+    }
+
+    centerYearOnTimeline(selectedYear, effectivePixelsPerYear);
+  }, [centerYearOnTimeline, effectivePixelsPerYear, revealFittedZoom, revealedYear, selectedYear, viewportWidth]);
 
   function handleScroll() {
     const viewport = viewportRef.current;
 
-    if (!viewport || syncScrollRef.current) {
+    if (!viewport || syncScrollRef.current || disabled) {
       return;
     }
 
     const year = clamp(
-      Math.round(minimumYear + viewport.scrollLeft / pixelsPerYear),
+      Math.round(minimumYear + viewport.scrollLeft / effectivePixelsPerYear),
       minimumYear,
       maximumYear,
     );
@@ -187,7 +205,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
     event.preventDefault();
 
     const zoomFactor = event.deltaY > 0 ? 0.92 : 1.08;
-    updateZoom(pixelsPerYear * zoomFactor);
+    updateZoom(effectivePixelsPerYear * zoomFactor);
   }
 
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
@@ -201,7 +219,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
     pinchStateRef.current = {
       centerYear: selectedYear,
       distance: touchDistance(touchA, touchB),
-      zoom: pixelsPerYear,
+      zoom: effectivePixelsPerYear,
     };
   }
 
@@ -228,29 +246,81 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
     pinchStateRef.current = null;
   }
 
+  const revealedOffset =
+    typeof revealedYear === "number"
+      ? (clamp(revealedYear, minimumYear, maximumYear) - minimumYear) * effectivePixelsPerYear + viewportWidth / 2
+      : null;
+  const guessedOffset =
+    (clamp(selectedYear, minimumYear, maximumYear) - minimumYear) * effectivePixelsPerYear + viewportWidth / 2;
+  const revealLineStartX =
+    typeof revealedYear === "number"
+      ? viewportWidth / 2 +
+        (selectedYear - (revealedMidpoint ?? selectedYear)) * effectivePixelsPerYear
+      : viewportWidth / 2;
+  const revealLineEndX =
+    typeof revealedYear === "number"
+      ? viewportWidth / 2 +
+        (revealedYear - (revealedMidpoint ?? selectedYear)) * effectivePixelsPerYear
+      : null;
+  const revealLineDistance =
+    typeof revealLineEndX === "number" ? Math.abs(revealLineEndX - revealLineStartX) : 0;
+  const revealLineCurveHeight = clamp(20 + revealLineDistance * 0.12, 20, 56);
+  const revealLinePath =
+    typeof revealLineEndX === "number"
+      ? `M ${revealLineStartX} 26 Q ${(revealLineStartX + revealLineEndX) / 2} ${26 - revealLineCurveHeight} ${revealLineEndX} 26`
+      : "";
+  const revealDifference =
+    typeof revealedYear === "number" ? Math.abs(revealedYear - selectedYear) : 0;
+  const isExactHit = revealDifference === 0 && typeof revealedYear === "number";
+  const revealAnimationKey =
+    typeof revealedYear === "number"
+      ? `${selectedYear}-${revealedYear}-${Math.round(viewportWidth)}`
+      : "hidden";
+
   return (
-    <div className="w-full overflow-hidden rounded-[1.4rem] border-[4px] border-white bg-[#132041]/85 px-2 py-3">
-      <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-[#162348]">
+    <div className="w-full rounded-[1.4rem] border-[4px] border-white bg-[#132041]/85 px-2 py-3">
+      <div className="relative overflow-visible rounded-[1.2rem] border border-white/10 bg-[#162348]">
         <div className="mb-2 flex items-center justify-between px-3 text-[0.65rem] uppercase tracking-[0.26em] text-white/52">
           <span>{minimumYear}</span>
           <span>Pinch or ctrl-scroll to zoom</span>
           <span>{maximumYear}</span>
         </div>
 
-        <div className="relative max-w-full overflow-hidden">
+        <div className="relative z-10 max-w-full overflow-visible">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent_23%,rgba(255,255,255,0.08)_24%,transparent_25%,transparent_73%,rgba(255,255,255,0.08)_74%,transparent_75%)]" />
           <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
-          <div className="pointer-events-none absolute left-1/2 top-0 z-20 h-full w-px -translate-x-1/2 bg-[#f7b63d]" />
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={disabled}
-            aria-label={`Guess ${selectedYear}`}
-            className={[
-              "absolute left-1/2 top-3 z-30 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-[#f7b63d] transition",
-              disabled ? "cursor-default opacity-70" : "cursor-pointer hover:scale-110 active:scale-95",
-            ].join(" ")}
-          />
+          {!disabled ? (
+            <div className="pointer-events-none absolute left-1/2 top-0 z-20 h-full w-px -translate-x-1/2 bg-[#f7b63d]" />
+          ) : null}
+          {typeof revealedYear === "number" && revealDifference > 0 ? (
+            <svg
+              key={revealAnimationKey}
+              className="pointer-events-none absolute inset-0 z-20 overflow-visible"
+              viewBox={`0 0 ${Math.max(viewportWidth, 1)} 96`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path
+                d={revealLinePath}
+                className="timeline-reveal-line"
+                pathLength={100}
+              />
+              <path
+                d={revealLinePath}
+                className="timeline-reveal-line timeline-reveal-line-glow"
+                pathLength={100}
+              />
+            </svg>
+          ) : null}
+          {!disabled ? (
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={disabled}
+              aria-label={`Guess ${selectedYear}`}
+              className="absolute left-1/2 top-3 z-30 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-[#f7b63d] transition hover:scale-110 active:scale-95"
+            />
+          ) : null}
 
           <div
             ref={viewportRef}
@@ -261,15 +331,39 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
             onTouchEnd={handleTouchEnd}
             className={[
               "timeline-viewport relative h-24 max-w-full overflow-x-auto overflow-y-hidden",
-              disabled ? "pointer-events-none opacity-70" : "",
+              disabled ? "pointer-events-none" : "",
             ].join(" ")}
           >
             <div className="relative h-full" style={{ width: `${contentWidth}px` }}>
+              {disabled ? (
+                <div
+                  className="pointer-events-none absolute top-0 z-10 h-full"
+                  style={{
+                    left: `${guessedOffset}px`,
+                    transform: "translateX(-50%)",
+                  }}
+                >
+                  <div
+                    className={[
+                      "absolute left-1/2 top-0 h-full w-px -translate-x-1/2",
+                      isExactHit ? "bg-[#39d353]" : "bg-[#f7b63d]",
+                    ].join(" ")}
+                  />
+                  <div
+                    className={[
+                      "absolute left-1/2 top-3 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white",
+                      isExactHit
+                        ? "bg-[#39d353] shadow-[0_0_0_0_rgba(57,211,83,0.85)] animate-[timeline-pin-flash_900ms_ease-in-out_infinite]"
+                        : "bg-[#f7b63d]",
+                    ].join(" ")}
+                  />
+                </div>
+              ) : null}
               {typeof revealedYear === "number" ? (
                 <div
                   className="pointer-events-none absolute top-0 z-10 h-full"
                   style={{
-                    left: `${(clamp(revealedYear, minimumYear, maximumYear) - minimumYear) * pixelsPerYear + viewportWidth / 2}px`,
+                    left: `${revealedOffset ?? 0}px`,
                     transform: "translateX(-50%)",
                   }}
                 >
@@ -279,7 +373,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
               ) : null}
 
               {years.map((year) => {
-                const offset = (year - minimumYear) * pixelsPerYear + viewportWidth / 2;
+                const offset = (year - minimumYear) * effectivePixelsPerYear + viewportWidth / 2;
                 const isDecade = year % 10 === 0;
                 const isHalfDecade = year % 5 === 0;
                 const tickHeight = isDecade ? 56 : isHalfDecade ? 38 : 20;
@@ -506,7 +600,7 @@ export function TimeDuelGame() {
 
       <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
         <div className="w-full max-w-3xl">
-          <div className="relative min-w-0 rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-left">
+          <div className="relative min-h-[6.5rem] min-w-0 rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-left sm:min-h-[5.75rem]">
             <p className="text-xs uppercase tracking-[0.3em] text-white/58">
               {currentGuess ? "Your result" : "Photo description"}
             </p>
