@@ -58,6 +58,14 @@ button {
   stroke-width: 7;
 }
 
+.timeline-confetti {
+  border-radius: 999px;
+  background: linear-gradient(180deg, #d8ffe0 0%, #72f08a 38%, #1d9a3a 100%);
+  box-shadow: 0 0 0.7rem rgba(109, 255, 135, 0.45);
+  opacity: 0;
+  animation: timeline-confetti-fall 2200ms linear forwards;
+}
+
 @keyframes timeline-reveal-draw {
   from {
     stroke-dashoffset: 100;
@@ -82,6 +90,22 @@ button {
       0 0 0 0.7rem rgba(57, 211, 83, 0),
       0 0 0.8rem rgba(109, 255, 135, 1);
     filter: brightness(1.2);
+  }
+}
+
+@keyframes timeline-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -8%, 0) scale(0.8);
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 135%, 0) rotate(320deg) scale(1.05);
   }
 }
 

@@ -47,6 +47,19 @@ const categories = [
   "Music",
   "More...",
 ] as const;
+const exactHitConfettiPieces = [
+  { left: "8%", delay: "0ms", duration: "2200ms", rotation: "-18deg", size: "0.55rem" },
+  { left: "16%", delay: "140ms", duration: "2000ms", rotation: "22deg", size: "0.45rem" },
+  { left: "23%", delay: "60ms", duration: "2350ms", rotation: "-32deg", size: "0.5rem" },
+  { left: "31%", delay: "210ms", duration: "2100ms", rotation: "28deg", size: "0.4rem" },
+  { left: "39%", delay: "0ms", duration: "1950ms", rotation: "-12deg", size: "0.6rem" },
+  { left: "47%", delay: "170ms", duration: "2400ms", rotation: "34deg", size: "0.5rem" },
+  { left: "56%", delay: "110ms", duration: "2050ms", rotation: "-24deg", size: "0.45rem" },
+  { left: "64%", delay: "250ms", duration: "2250ms", rotation: "16deg", size: "0.55rem" },
+  { left: "73%", delay: "80ms", duration: "2150ms", rotation: "-28deg", size: "0.42rem" },
+  { left: "82%", delay: "190ms", duration: "2300ms", rotation: "26deg", size: "0.5rem" },
+  { left: "90%", delay: "40ms", duration: "2000ms", rotation: "-20deg", size: "0.58rem" },
+] as const;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -423,6 +436,7 @@ export function TimeDuelGame() {
   const totalScore = rawScore * finalScoreMultiplier;
   const averageScore = guesses.length > 0 ? Math.round(rawScore / guesses.length) : 0;
   const isFinished = currentRound >= totalRounds;
+  const isExactHitRound = currentGuess?.difference === 0;
   function startGame() {
     setHasStarted(true);
     setCurrentRound(0);
@@ -627,6 +641,24 @@ export function TimeDuelGame() {
 
         <div className="w-full max-w-3xl">
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.4rem] border-[4px] border-white bg-[#132041]">
+            {isExactHitRound ? (
+              <div key={`confetti-${currentRound}-${currentQuestion.id}`} className="pointer-events-none absolute inset-0 z-10">
+                {exactHitConfettiPieces.map((piece, index) => (
+                  <span
+                    key={`${currentQuestion.id}-${index}`}
+                    className="absolute top-[-12%] timeline-confetti"
+                    style={{
+                      left: piece.left,
+                      width: piece.size,
+                      height: `calc(${piece.size} * 1.9)`,
+                      rotate: piece.rotation,
+                      animationDelay: piece.delay,
+                      animationDuration: piece.duration,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : null}
             <Image
               src={currentQuestion.imageUrl}
               alt={currentQuestion.alt}
