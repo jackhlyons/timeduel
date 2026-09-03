@@ -50,7 +50,7 @@ button {
   stroke-linecap: round;
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
-  animation: timeline-reveal-draw 1300ms cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
+  animation: timeline-reveal-draw 1700ms cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
 }
 
 .timeline-reveal-line-glow {
