@@ -36,6 +36,8 @@ const defaultTimelineYear = maximumYear;
 const minimumZoom = 1;
 const maximumZoom = 28;
 const defaultZoom = 8;
+const halfDecadeTickZoomThreshold = 4;
+const yearlyTickZoomThreshold = 10;
 const maximumRoundScore = 100;
 const finalScoreMultiplier = 2;
 const scoreFadeYears = 50;
@@ -146,6 +148,8 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
   const yearSpan = maximumYear - minimumYear;
   const years = Array.from({ length: yearSpan + 1 }, (_, index) => minimumYear + index);
   const effectivePixelsPerYear = pixelsPerYear;
+  const showHalfDecadeTicks = effectivePixelsPerYear >= halfDecadeTickZoomThreshold;
+  const showYearlyTicks = effectivePixelsPerYear >= yearlyTickZoomThreshold;
   const contentWidth = yearSpan * effectivePixelsPerYear + viewportWidth;
   const revealKey =
     typeof revealedYear === "number" ? `${selectedYear}-${revealedYear}` : null;
@@ -407,15 +411,15 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
       : "hidden";
 
   return (
-    <div className="w-full rounded-[1.4rem] border-[4px] border-white bg-[#132041]/85 px-2 py-3">
-      <div className="relative overflow-visible rounded-[1.2rem] border border-white/10 bg-[#162348]">
+    <div className="w-full min-w-0 max-w-full rounded-[1.4rem] border-[4px] border-white bg-[#132041]/85 px-2 py-3">
+      <div className="relative min-w-0 max-w-full overflow-visible rounded-[1.2rem] border border-white/10 bg-[#162348]">
         <div className="mb-2 flex items-center justify-between px-3 text-[0.65rem] uppercase tracking-[0.26em] text-white/52">
           <span>{minimumYear}</span>
           <span>Pinch or ctrl-scroll to zoom</span>
           <span>{maximumYear}</span>
         </div>
 
-        <div className="relative z-10 max-w-full overflow-visible">
+        <div className="relative z-10 w-full min-w-0 max-w-full overflow-visible">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent_23%,rgba(255,255,255,0.08)_24%,transparent_25%,transparent_73%,rgba(255,255,255,0.08)_74%,transparent_75%)]" />
           <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
           {!disabled ? (
@@ -433,12 +437,36 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                 d={revealLinePath}
                 className="timeline-reveal-line"
                 pathLength={100}
-              />
+                fill="none"
+                stroke="#6dff87"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+              >
+                <animate
+                  attributeName="stroke-dashoffset"
+                  from="100"
+                  to="0"
+                  dur="3s"
+                  fill="freeze"
+                />
+              </path>
               <path
                 d={revealLinePath}
                 className="timeline-reveal-line timeline-reveal-line-glow"
                 pathLength={100}
-              />
+                fill="none"
+                stroke="rgba(109, 255, 135, 0.3)"
+                strokeWidth={7}
+                strokeLinecap="round"
+              >
+                <animate
+                  attributeName="stroke-dashoffset"
+                  from="100"
+                  to="0"
+                  dur="3s"
+                  fill="freeze"
+                />
+              </path>
             </svg>
           ) : null}
           {!disabled ? (
@@ -459,7 +487,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             className={[
-              "timeline-viewport relative h-24 max-w-full overflow-x-auto overflow-y-hidden",
+              "timeline-viewport relative h-24 w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden",
               disabled ? "pointer-events-none" : "",
             ].join(" ")}
           >
@@ -505,6 +533,13 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                 const offset = (year - minimumYear) * effectivePixelsPerYear + viewportWidth / 2;
                 const isDecade = year % 10 === 0;
                 const isHalfDecade = year % 5 === 0;
+                const shouldRenderTick =
+                  isDecade || (isHalfDecade && showHalfDecadeTicks) || showYearlyTicks;
+
+                if (!shouldRenderTick) {
+                  return null;
+                }
+
                 const tickHeight = isDecade ? 56 : isHalfDecade ? 38 : 20;
                 const showLabel = isDecade || year === minimumYear || year === maximumYear;
 
@@ -586,7 +621,7 @@ export function TimeDuelGame() {
       return;
     }
 
-    const difference = Math.abs(selectedYear - currentQuestion.correctAnswer);
+    const difference = Math.abs(selectedYear - currentQuestion.year);
 
     setGuesses((previous) => [
       ...previous,
@@ -629,8 +664,8 @@ export function TimeDuelGame() {
 
   function shell(children: ReactNode) {
     return (
-      <main className="min-h-screen bg-[#162348] px-4 py-6 text-white sm:px-8 sm:py-8">
-        <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
+      <main className="min-h-screen w-full max-w-full bg-[#162348] px-4 py-6 text-white sm:px-8 sm:py-8">
+        <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full min-w-0 max-w-6xl flex-col">
           {children}
         </div>
       </main>
@@ -737,7 +772,7 @@ export function TimeDuelGame() {
                       ROUND {index + 1}
                     </span>
                     <span className="text-right text-white">
-                      {guess?.selectedYear ?? "No guess"} / {question.correctAnswer}
+                      {guess?.selectedYear ?? "No guess"} / {question.year}
                       {guess ? ` (${guess.roundScore} pts)` : ""}
                     </span>
                   </div>
@@ -761,7 +796,7 @@ export function TimeDuelGame() {
   }
 
   return shell(
-    <section className="flex flex-1 flex-col py-1">
+    <section className="flex w-full min-w-0 max-w-full flex-1 flex-col py-1">
       <div className="mb-3 flex justify-center">
         <div
           className={[
@@ -775,8 +810,8 @@ export function TimeDuelGame() {
         </div>
       </div>
 
-      <div className="grid flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
-        <div className="w-full max-w-3xl">
+      <div className="grid w-full min-w-0 max-w-full flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
+        <div className="w-full min-w-0 max-w-3xl">
           <div className="relative min-h-[6.5rem] min-w-0 rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-left sm:min-h-[5.75rem]">
             <p className="text-xs uppercase tracking-[0.3em] text-white/58">
               {currentGuess ? "Your result" : "PHOTO"}
@@ -785,7 +820,7 @@ export function TimeDuelGame() {
               {currentGuess
                 ? currentGuess.difference === 0
                   ? `Exact hit. ${currentGuess.roundScore} points.`
-                  : `${currentGuess.selectedYear < currentQuestion.correctAnswer ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.correctAnswer}.`
+                  : `${currentGuess.selectedYear < currentQuestion.year ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.year}.`
                 : "What year was this photo taken?"}
             </p>
             {currentGuess ? (
@@ -802,8 +837,8 @@ export function TimeDuelGame() {
           </div>
         </div>
 
-        <div className="w-full max-w-3xl">
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.4rem] border-[4px] border-white bg-[#132041]">
+        <div className="w-full min-w-0 max-w-3xl">
+          <div className="relative aspect-[4/3] w-full min-w-0 max-w-full overflow-hidden rounded-[1.4rem] border-[4px] border-white bg-[#132041]">
             {isExactHitRound ? (
               <div key={`confetti-${currentRound}-${currentQuestion.id}`} className="pointer-events-none absolute inset-0 z-10">
                 {exactHitConfettiPieces.map((piece, index) => (
@@ -824,11 +859,11 @@ export function TimeDuelGame() {
             ) : null}
             <Image
               src={currentQuestion.imageUrl}
-              alt={currentQuestion.alt}
+              alt={currentQuestion.imageAlt}
               fill
               priority
-              sizes="(max-width: 1024px) 100vw, 900px"
-              className="object-contain"
+              sizes="(max-width: 768px) calc(100vw - 32px), 900px"
+              className="max-w-full object-contain"
             />
             <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/18 bg-[#101a35]/92 px-5 py-1.5 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
               <p className="text-[0.58rem] uppercase tracking-[0.26em] text-white/55">Year</p>
@@ -844,17 +879,17 @@ export function TimeDuelGame() {
               selectedYear={currentGuess?.selectedYear ?? selectedYear}
               onChange={setSelectedYear}
               onSubmit={handleGuess}
-              revealedYear={currentGuess ? currentQuestion.correctAnswer : undefined}
+              revealedYear={currentGuess ? currentQuestion.year : undefined}
             />
           </div>
         </div>
 
-        <div className="min-h-[1rem] w-full max-w-3xl" />
+        <div className="min-h-[1rem] w-full min-w-0 max-w-3xl" />
 
-        <div className="min-h-[2.5rem] w-full max-w-3xl">
-          {currentGuess && currentQuestion.photoCredit ? (
-            <div className="mx-auto w-full max-w-3xl text-center text-sm leading-6 text-white/74">
-              <p className="font-medium text-white/88">{currentQuestion.photoCredit}</p>
+        <div className="min-h-[2.5rem] w-full min-w-0 max-w-3xl">
+          {currentGuess && currentQuestion.imageCredit ? (
+            <div className="mx-auto w-full min-w-0 max-w-3xl text-center text-sm leading-6 text-white/74">
+              <p className="font-medium text-white/88">{currentQuestion.imageCredit}</p>
             </div>
           ) : null}
         </div>
