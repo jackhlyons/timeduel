@@ -135,6 +135,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
   const syncScrollRef = useRef(false);
   const revealAnimationFrameRef = useRef<number | null>(null);
   const pixelsPerYearRef = useRef(defaultZoom);
+  const timelineScrollLeftRef = useRef(0);
   const pinchStateRef = useRef<{
     centerYear: number;
     distance: number;
@@ -171,12 +172,19 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
 
       syncScrollRef.current = true;
       viewport.scrollLeft = nextScrollLeft;
-      setTimelineScrollLeft(nextScrollLeft);
+      timelineScrollLeftRef.current = nextScrollLeft;
+
+      if (typeof revealedYear === "number") {
+        requestAnimationFrame(() => {
+          setTimelineScrollLeft(nextScrollLeft);
+        });
+      }
+
       requestAnimationFrame(() => {
         syncScrollRef.current = false;
       });
     },
-    [yearSpan],
+    [revealedYear, yearSpan],
   );
 
   function updateZoom(nextZoom: number) {
@@ -248,6 +256,10 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
       return;
     }
 
+    requestAnimationFrame(() => {
+      setTimelineScrollLeft(viewport.scrollLeft);
+    });
+
     const currentZoom = pixelsPerYearRef.current;
     const visibleStart = minimumYear + (viewport.scrollLeft - viewportWidth / 2) / currentZoom;
     const visibleEnd = minimumYear + (viewport.scrollLeft + viewportWidth / 2) / currentZoom;
@@ -313,7 +325,11 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
       return;
     }
 
-    setTimelineScrollLeft(viewport.scrollLeft);
+    timelineScrollLeftRef.current = viewport.scrollLeft;
+
+    if (typeof revealedYear === "number") {
+      setTimelineScrollLeft(viewport.scrollLeft);
+    }
 
     if (syncScrollRef.current || disabled) {
       return;
@@ -421,10 +437,9 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
         </div>
 
         <div className="relative z-10 w-full min-w-0 max-w-full overflow-visible">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent_23%,rgba(255,255,255,0.08)_24%,transparent_25%,transparent_73%,rgba(255,255,255,0.08)_74%,transparent_75%)]" />
           <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
           {!disabled ? (
-            <div className="pointer-events-none absolute left-1/2 top-0 z-20 h-full w-px -translate-x-1/2 bg-[#f7b63d]" />
+            <div className="pointer-events-none absolute bottom-8.5 left-1/2 top-5.5 z-20 w-px -translate-x-1/2 bg-[#f7b63d]" />
           ) : null}
           {typeof visibleRevealedYear === "number" && revealDifference > 0 ? (
             <svg
@@ -471,13 +486,18 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
             </svg>
           ) : null}
           {!disabled ? (
-            <button
-              type="button"
-              onClick={onSubmit}
-              disabled={disabled}
-              aria-label={`Guess ${selectedYear}`}
-              className="absolute left-1/2 top-3 z-30 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-[#f7b63d] transition hover:scale-110 active:scale-95"
-            />
+            <>
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={disabled}
+                aria-label={`Guess ${selectedYear}`}
+                className="absolute left-1/2 top-2 z-30 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#f7b63d] transition hover:scale-110 active:scale-95"
+              />
+              <span className="pointer-events-none absolute left-1/2 top-[calc(50%+1.85rem)] z-30 -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-[#f7b63d]">
+                {selectedYear}
+              </span>
+            </>
           ) : null}
 
           <div
@@ -503,18 +523,27 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                 >
                   <div
                     className={[
-                      "absolute left-1/2 top-0 h-full w-px -translate-x-1/2",
-                      isExactHit ? "bg-[#39d353]" : "bg-[#f7b63d]",
+                      "absolute left-1/2 w-px -translate-x-1/2",
+                      isExactHit
+                        ? "bottom-8.5 top-5.5 bg-[#39d353]"
+                        : "bottom-8.5 top-5.5 bg-[#f7b63d]",
                     ].join(" ")}
                   />
                   <div
                     className={[
-                      "absolute left-1/2 top-3 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white",
+                      isExactHit
+                        ? "absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full"
+                        : "absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full",
                       isExactHit
                         ? "bg-[#39d353] shadow-[0_0_0_0_rgba(57,211,83,0.85)] animate-[timeline-pin-flash_900ms_ease-in-out_infinite]"
                         : "bg-[#f7b63d]",
                     ].join(" ")}
                   />
+                  {!isExactHit ? (
+                    <span className="absolute left-1/2 top-[calc(50%+1.85rem)] -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-[#f7b63d]">
+                      {selectedYear}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
               {typeof visibleRevealedYear === "number" ? (
@@ -525,8 +554,11 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                     transform: "translateX(-50%)",
                   }}
                 >
-                  <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[#39d353]" />
-                  <div className="absolute left-1/2 top-3 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-[#39d353]" />
+                  <div className="absolute bottom-8.5 left-1/2 top-5.5 w-px -translate-x-1/2 bg-[#39d353]" />
+                  <div className="absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#39d353]" />
+                  <span className="absolute left-1/2 top-[calc(50%+1.85rem)] -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-[#39d353]">
+                    {visibleRevealedYear}
+                  </span>
                 </div>
               ) : null}
 
@@ -541,8 +573,8 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                   return null;
                 }
 
-                const tickHeight = isDecade ? 56 : isHalfDecade ? 38 : 20;
-                const showLabel = isDecade || year === minimumYear || year === maximumYear;
+                const tickHeight = isDecade ? 28 : isHalfDecade ? 19 : 10;
+                const showLabel = !disabled && (isDecade || year === minimumYear || year === maximumYear);
                 const showMobileLabel = year % 20 === 0 || year === minimumYear || year === maximumYear;
 
                 return (
@@ -554,7 +586,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                     <div
                       className={[
                         "w-px bg-white/70",
-                        isDecade ? "bg-white/95" : isHalfDecade ? "bg-white/75" : "bg-white/42",
+                        isDecade ? "bg-white/95" : isHalfDecade ? "bg-white/75" : "bg-white/22",
                       ].join(" ")}
                       style={{ height: `${tickHeight}px` }}
                     />
