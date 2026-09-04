@@ -411,11 +411,12 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
       : "hidden";
 
   return (
-    <div className="w-full min-w-0 max-w-full rounded-[1.4rem] border-[4px] border-white bg-[#132041]/85 px-2 py-3">
-      <div className="relative min-w-0 max-w-full overflow-visible rounded-[1.2rem] border border-white/10 bg-[#162348]">
+    <div className="w-full min-w-0 max-w-full rounded-[1.4rem] border-2 border-white/70 bg-[#132041]/85 px-2 py-3">
+      <div className="relative min-w-0 max-w-full overflow-visible">
         <div className="mb-2 flex items-center justify-between px-3 text-[0.65rem] uppercase tracking-[0.26em] text-white/52">
           <span>{minimumYear}</span>
-          <span>Pinch or ctrl-scroll to zoom</span>
+          <span className="whitespace-nowrap sm:hidden">Pinch to zoom</span>
+          <span className="hidden whitespace-nowrap sm:inline">Pinch or ctrl-scroll to zoom</span>
           <span>{maximumYear}</span>
         </div>
 
@@ -542,6 +543,7 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
 
                 const tickHeight = isDecade ? 56 : isHalfDecade ? 38 : 20;
                 const showLabel = isDecade || year === minimumYear || year === maximumYear;
+                const showMobileLabel = year % 20 === 0 || year === minimumYear || year === maximumYear;
 
                 return (
                   <div
@@ -557,7 +559,12 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                       style={{ height: `${tickHeight}px` }}
                     />
                     {showLabel ? (
-                      <span className="absolute left-1/2 top-[calc(100%+0.55rem)] -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-white/68">
+                      <span
+                        className={[
+                          "absolute left-1/2 top-[calc(100%+0.1rem)] -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-white/68",
+                          showMobileLabel ? "" : "hidden sm:inline",
+                        ].join(" ")}
+                      >
                         {year}
                       </span>
                     ) : null}
@@ -798,25 +805,28 @@ export function TimeDuelGame() {
   return shell(
     <section className="flex w-full min-w-0 max-w-full flex-1 flex-col py-1">
       <div className="mb-3 flex justify-center">
-        <div
-          className={[
-            "rounded-full border border-white/18 px-4 py-1.5 text-center shadow-[0_8px_20px_rgba(0,0,0,0.14)]",
-            roundBadge.className,
-          ].join(" ")}
-        >
-          <p className="text-sm font-medium tracking-[-0.03em] text-white">
-            Round {currentRound + 1} ({roundBadge.label}) out of {totalRounds}
+        <div className="flex items-center gap-2 text-center text-[0.65rem] font-medium uppercase tracking-[0.16em] text-white/48">
+          <p>
+            Round {currentRound + 1} / {totalRounds}
           </p>
+          <span
+            className={[
+              "rounded-full px-2 py-0.5 text-[0.56rem] font-semibold tracking-[0.12em] text-white/90 opacity-85",
+              roundBadge.className,
+            ].join(" ")}
+          >
+            {roundBadge.label}
+          </span>
         </div>
       </div>
 
       <div className="grid w-full min-w-0 max-w-full flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
         <div className="w-full min-w-0 max-w-3xl">
-          <div className="relative min-h-[6.5rem] min-w-0 rounded-[1rem] border border-white/14 bg-white/6 px-3 py-1.5 text-left sm:min-h-[5.75rem]">
+          <div className="relative flex min-h-[3.5rem] min-w-0 flex-col justify-center rounded-[1rem] border border-white/14 bg-white/6 px-3 py-0.5 text-left sm:min-h-[3.25rem]">
             <p className="text-xs uppercase tracking-[0.3em] text-white/58">
               {currentGuess ? "Your result" : "PHOTO"}
             </p>
-            <p className="mt-1 break-words pr-32 text-base leading-5 text-white/88">
+            <p className="mt-0.5 break-words pr-32 text-base leading-5 text-white/88">
               {currentGuess
                 ? currentGuess.difference === 0
                   ? `Exact hit. ${currentGuess.roundScore} points.`
@@ -838,7 +848,7 @@ export function TimeDuelGame() {
         </div>
 
         <div className="w-full min-w-0 max-w-3xl">
-          <div className="relative aspect-[4/3] w-full min-w-0 max-w-full overflow-hidden rounded-[1.4rem] border-[4px] border-white bg-[#132041]">
+          <div className="relative aspect-[13/12] w-full min-w-0 max-w-full overflow-hidden rounded-[1.4rem] border-2 border-white/70 bg-[#132041] sm:aspect-[4/3]">
             {isExactHitRound ? (
               <div key={`confetti-${currentRound}-${currentQuestion.id}`} className="pointer-events-none absolute inset-0 z-10">
                 {exactHitConfettiPieces.map((piece, index) => (
@@ -865,15 +875,15 @@ export function TimeDuelGame() {
               sizes="(max-width: 768px) calc(100vw - 32px), 900px"
               className="max-w-full object-contain"
             />
-            <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/18 bg-[#101a35]/92 px-5 py-1.5 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
-              <p className="text-[0.58rem] uppercase tracking-[0.26em] text-white/55">Year</p>
-              <p className="mt-0.5 text-2xl font-medium tracking-[-0.06em] text-white">
+            <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/18 bg-[#101a35]/92 px-3.5 py-1 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)] sm:px-4.5">
+              <p className="text-[0.4rem] uppercase tracking-[0.2em] text-white/55 sm:text-[0.46rem] sm:tracking-[0.22em]">Year</p>
+              <p className="mt-px text-[1.0625rem] font-medium tracking-[-0.06em] text-white sm:text-[1.25rem]">
                 {currentGuess?.selectedYear ?? selectedYear}
               </p>
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-11 sm:mt-4">
             <YearTimeline
               disabled={Boolean(currentGuess)}
               selectedYear={currentGuess?.selectedYear ?? selectedYear}
