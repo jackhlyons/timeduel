@@ -26,6 +26,7 @@ type YearTimelineProps = {
   onChange: (year: number) => void;
   onSubmit: () => void;
   revealedYear?: number;
+  showZoomHint: boolean;
 };
 
 const rounds = questions.slice(0, 5);
@@ -130,7 +131,14 @@ function getShareDateLabel(date: Date) {
   });
 }
 
-function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear }: YearTimelineProps) {
+function YearTimeline({
+  disabled,
+  selectedYear,
+  onChange,
+  onSubmit,
+  revealedYear,
+  showZoomHint,
+}: YearTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const syncScrollRef = useRef(false);
   const revealAnimationFrameRef = useRef<number | null>(null);
@@ -427,12 +435,11 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
       : "hidden";
 
   return (
-    <div className="w-full min-w-0 max-w-full rounded-[1.4rem] border-2 border-white/70 bg-[#132041]/85 px-2 py-3">
+    <div className="w-full min-w-0 max-w-full rounded-[1.4rem] border-2 border-transparent bg-[#18243a] px-2 py-3">
       <div className="relative min-w-0 max-w-full overflow-visible">
         <div className="mb-2 flex items-center justify-between px-3 text-[0.65rem] uppercase tracking-[0.26em] text-white/52">
           <span>{minimumYear}</span>
-          <span className="whitespace-nowrap sm:hidden">Pinch to zoom</span>
-          <span className="hidden whitespace-nowrap sm:inline">Pinch or ctrl-scroll to zoom</span>
+          <span aria-hidden="true" />
           <span>{maximumYear}</span>
         </div>
 
@@ -598,6 +605,12 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
             </div>
           </div>
         </div>
+        {showZoomHint ? (
+          <p className="mt-1 text-center text-[0.6rem] uppercase tracking-[0.18em] text-white/42">
+            <span className="sm:hidden">Pinch to zoom</span>
+            <span className="hidden sm:inline">Pinch or ctrl-scroll to zoom</span>
+          </p>
+        ) : null}
       </div>
 
     </div>
@@ -695,7 +708,7 @@ export function TimeDuelGame() {
 
   function shell(children: ReactNode) {
     return (
-      <main className="min-h-screen w-full max-w-full bg-[#162348] px-4 py-6 text-white sm:px-8 sm:py-8">
+      <main className="min-h-screen w-full max-w-full bg-[#18243a] px-4 py-6 text-white sm:px-8 sm:py-8">
         <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full min-w-0 max-w-6xl flex-col">
           {children}
         </div>
@@ -828,6 +841,12 @@ export function TimeDuelGame() {
 
   return shell(
     <section className="flex w-full min-w-0 max-w-full flex-1 flex-col py-1">
+      <div className="mb-2 flex justify-center" aria-label="TimeDuel">
+        <div className="flex leading-none">
+          <span className="text-6xl font-light tracking-[-0.06em] text-white/78 sm:text-7xl">Time</span>
+          <span className="text-6xl font-light tracking-[-0.06em] text-[#f7b63d] sm:text-7xl">Duel</span>
+        </div>
+      </div>
       <div className="mb-3 flex justify-center">
         <div className="flex items-center gap-2 text-center text-[0.65rem] font-medium uppercase tracking-[0.16em] text-white/48">
           <p>
@@ -844,13 +863,18 @@ export function TimeDuelGame() {
         </div>
       </div>
 
-      <div className="grid w-full min-w-0 max-w-full flex-1 grid-rows-[auto_auto_auto_1fr] justify-items-center gap-4 py-3">
+      <div className="flex w-full min-w-0 max-w-full flex-1 flex-col items-center gap-4 py-3">
         <div className="w-full min-w-0 max-w-3xl">
-          <div className="relative flex min-h-[3.5rem] min-w-0 flex-col justify-center rounded-[1rem] border border-white/14 bg-white/6 px-3 py-0.5 text-left sm:min-h-[3.25rem]">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/58">
+          <div className="relative flex min-h-[3.5rem] min-w-0 flex-col justify-center rounded-[1rem] border border-transparent bg-transparent px-3 py-0.5 text-left sm:min-h-[3.25rem]">
+            <p className="translate-y-2 text-xs uppercase tracking-[0.3em] text-white/58">
               {currentGuess ? "Your result" : "PHOTO"}
             </p>
-            <p className="mt-0.5 break-words pr-32 text-base leading-5 text-white/88">
+            <p
+              className={[
+                "mt-0.5 translate-y-2 text-base leading-5 text-white/88",
+                currentGuess ? "break-words pr-32" : "whitespace-nowrap",
+              ].join(" ")}
+            >
               {currentGuess
                 ? currentGuess.difference === 0
                   ? `Exact hit. ${currentGuess.roundScore} points.`
@@ -871,8 +895,8 @@ export function TimeDuelGame() {
           </div>
         </div>
 
-        <div className="w-full min-w-0 max-w-3xl">
-          <div className="relative aspect-[13/12] w-full min-w-0 max-w-full overflow-hidden rounded-[1.4rem] border-2 border-transparent bg-[#132041] sm:aspect-[4/3]">
+        <div className="flex min-h-0 w-full min-w-0 max-w-3xl flex-1 flex-col">
+          <div className="relative min-h-[18rem] w-full min-w-0 max-w-full flex-1 overflow-hidden rounded-[1.4rem] border-2 border-transparent bg-[#18243a] sm:min-h-[24rem]">
             {isExactHitRound ? (
               <div key={`confetti-${currentRound}-${currentQuestion.id}`} className="pointer-events-none absolute inset-0 z-10">
                 {exactHitConfettiPieces.map((piece, index) => (
@@ -897,20 +921,43 @@ export function TimeDuelGame() {
               fill
               priority
               sizes="(max-width: 768px) calc(100vw - 32px), 900px"
-              className="max-w-full object-contain"
+              className="max-w-full rounded-[1.25rem] object-contain"
             />
           </div>
 
           <div className="relative mt-11 sm:mt-16">
-            <p className="pointer-events-none absolute left-1/2 top-[-1.375rem] z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-[#f7b63d] sm:top-[-2rem] sm:text-5xl">
-              {selectedYear}
-            </p>
+            {currentGuess ? (
+              <div className="pointer-events-none absolute left-1/2 top-[-1.125rem] z-10 flex -translate-x-1/2 -translate-y-1/2 items-start gap-3 whitespace-nowrap text-center sm:top-[-1.75rem] sm:gap-5">
+                <div>
+                  <p className="text-3xl font-medium tracking-[-0.06em] text-[#f7b63d] sm:text-5xl">
+                    {currentGuess.selectedYear}
+                  </p>
+                  <p className="mt-0.5 text-[0.56rem] font-medium uppercase tracking-[0.16em] text-[#f7b63d]/75 sm:text-[0.62rem]">
+                    You
+                  </p>
+                </div>
+                <span className="mt-1 text-2xl font-light text-white/38 sm:mt-2 sm:text-4xl">→</span>
+                <div>
+                  <p className="text-3xl font-medium tracking-[-0.06em] text-[#39d353] sm:text-5xl">
+                    {currentQuestion.year}
+                  </p>
+                  <p className="mt-0.5 text-[0.56rem] font-medium uppercase tracking-[0.16em] text-[#39d353]/75 sm:text-[0.62rem]">
+                    Correct
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="pointer-events-none absolute left-1/2 top-5 z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-[#f7b63d] sm:top-4 sm:text-5xl">
+                {selectedYear}
+              </p>
+            )}
             <YearTimeline
               disabled={Boolean(currentGuess)}
               selectedYear={currentGuess?.selectedYear ?? selectedYear}
               onChange={setSelectedYear}
               onSubmit={handleGuess}
               revealedYear={currentGuess ? currentQuestion.year : undefined}
+              showZoomHint={currentRound === 0}
             />
           </div>
         </div>
