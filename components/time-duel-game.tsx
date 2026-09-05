@@ -494,9 +494,6 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                 aria-label={`Guess ${selectedYear}`}
                 className="absolute left-1/2 top-2 z-30 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#f7b63d] transition hover:scale-110 active:scale-95"
               />
-              <span className="pointer-events-none absolute left-1/2 top-[calc(50%+1.85rem)] z-30 -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-[#f7b63d]">
-                {selectedYear}
-              </span>
             </>
           ) : null}
 
@@ -539,11 +536,6 @@ function YearTimeline({ disabled, selectedYear, onChange, onSubmit, revealedYear
                         : "bg-[#f7b63d]",
                     ].join(" ")}
                   />
-                  {!isExactHit ? (
-                    <span className="absolute left-1/2 top-[calc(50%+1.85rem)] -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-[#f7b63d]">
-                      {selectedYear}
-                    </span>
-                  ) : null}
                 </div>
               ) : null}
               {typeof visibleRevealedYear === "number" ? (
@@ -880,7 +872,7 @@ export function TimeDuelGame() {
         </div>
 
         <div className="w-full min-w-0 max-w-3xl">
-          <div className="relative aspect-[13/12] w-full min-w-0 max-w-full overflow-hidden rounded-[1.4rem] border-2 border-white/70 bg-[#132041] sm:aspect-[4/3]">
+          <div className="relative aspect-[13/12] w-full min-w-0 max-w-full overflow-hidden rounded-[1.4rem] border-2 border-transparent bg-[#132041] sm:aspect-[4/3]">
             {isExactHitRound ? (
               <div key={`confetti-${currentRound}-${currentQuestion.id}`} className="pointer-events-none absolute inset-0 z-10">
                 {exactHitConfettiPieces.map((piece, index) => (
@@ -907,15 +899,12 @@ export function TimeDuelGame() {
               sizes="(max-width: 768px) calc(100vw - 32px), 900px"
               className="max-w-full object-contain"
             />
-            <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/18 bg-[#101a35]/92 px-3.5 py-1 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)] sm:px-4.5">
-              <p className="text-[0.4rem] uppercase tracking-[0.2em] text-white/55 sm:text-[0.46rem] sm:tracking-[0.22em]">Year</p>
-              <p className="mt-px text-[1.0625rem] font-medium tracking-[-0.06em] text-white sm:text-[1.25rem]">
-                {currentGuess?.selectedYear ?? selectedYear}
-              </p>
-            </div>
           </div>
 
-          <div className="mt-11 sm:mt-4">
+          <div className="relative mt-11 sm:mt-16">
+            <p className="pointer-events-none absolute left-1/2 top-[-1.375rem] z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-[#f7b63d] sm:top-[-2rem] sm:text-5xl">
+              {selectedYear}
+            </p>
             <YearTimeline
               disabled={Boolean(currentGuess)}
               selectedYear={currentGuess?.selectedYear ?? selectedYear}
