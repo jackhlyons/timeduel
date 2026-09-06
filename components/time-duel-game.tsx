@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type TouchEvent,
   type WheelEvent,
@@ -27,6 +28,12 @@ type YearTimelineProps = {
   onSubmit: () => void;
   revealedYear?: number;
   showZoomHint: boolean;
+};
+
+type ImageViewerProps = {
+  src: string;
+  alt: string;
+  onClose: () => void;
 };
 
 const rounds = questions.slice(0, 5);
@@ -617,12 +624,164 @@ function YearTimeline({
   );
 }
 
+function ImageViewer({ src, alt, onClose }: ImageViewerProps) {
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  function updateZoom(nextZoom: number) {
+    const clampedZoom = clamp(nextZoom, 1, 4);
+
+    zoomRef.current = clampedZoom;
+    setZoom(clampedZoom);
+
+    if (clampedZoom === 1) {
+      panRef.current = { x: 0, y: 0 };
+      setPan(panRef.current);
+    }
+  }
+
+  function updatePan(nextPan: { x: number; y: number }) {
+    panRef.current = nextPan;
+    setPan(nextPan);
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (pointersRef.current.size === 1) {
+      dragStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        panX: panRef.current.x,
+        panY: panRef.current.y,
+      };
+      return;
+    }
+
+    if (pointersRef.current.size === 2) {
+      const [firstPointer, secondPointer] = [...pointersRef.current.values()];
+
+      pinchStartRef.current = {
+        distance: Math.hypot(firstPointer.x - secondPointer.x, firstPointer.y - secondPointer.y),
+        zoom: zoomRef.current,
+      };
+      dragStartRef.current = null;
+    }
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointersRef.current.has(event.pointerId)) {
+      return;
+    }
+
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (pointersRef.current.size === 2 && pinchStartRef.current) {
+      const [firstPointer, secondPointer] = [...pointersRef.current.values()];
+      const distance = Math.hypot(firstPointer.x - secondPointer.x, firstPointer.y - secondPointer.y);
+
+      updateZoom(pinchStartRef.current.zoom * (distance / pinchStartRef.current.distance));
+      return;
+    }
+
+    if (pointersRef.current.size === 1 && dragStartRef.current && zoomRef.current > 1) {
+      updatePan({
+        x: dragStartRef.current.panX + event.clientX - dragStartRef.current.x,
+        y: dragStartRef.current.panY + event.clientY - dragStartRef.current.y,
+      });
+    }
+  }
+
+  function handlePointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    pointersRef.current.delete(event.pointerId);
+    dragStartRef.current = null;
+    pinchStartRef.current = null;
+  }
+
+  function handleWheel(event: WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    updateZoom(zoomRef.current * (event.deltaY > 0 ? 0.88 : 1.12));
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#080d18]/95 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Expanded image viewer"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-[#18243a]/90 text-2xl leading-none text-white transition hover:bg-white/15"
+        aria-label="Close image viewer"
+      >
+        ×
+      </button>
+      <div
+        className="relative h-[90vh] w-[94vw] max-w-7xl touch-none select-none"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onWheel={handleWheel}
+        style={{ cursor: zoom > 1 ? "grab" : "zoom-in" }}
+      >
+        <div
+          className="relative h-full w-full"
+          style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}
+        >
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            unoptimized
+            sizes="100vw"
+            className="pointer-events-none object-contain"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TimeDuelGame() {
   const [hasStarted, setHasStarted] = useState(false);
   const [currentRound, setCurrentRound] = useState(0);
   const [guesses, setGuesses] = useState<GuessRecord[]>([]);
   const [selectedYear, setSelectedYear] = useState(defaultTimelineYear);
   const [shareCopyState, setShareCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
 
   const currentQuestion = rounds[currentRound];
   const currentGuess = guesses[currentRound];
@@ -923,6 +1082,12 @@ export function TimeDuelGame() {
               sizes="(max-width: 768px) calc(100vw - 32px), 900px"
               className="max-w-full rounded-[1.25rem] object-contain"
             />
+            <button
+              type="button"
+              onClick={() => setIsImageViewerOpen(true)}
+              className="absolute inset-0 z-20 cursor-zoom-in"
+              aria-label="Open full-screen image viewer"
+            />
           </div>
 
           <div className="relative mt-11 sm:mt-16">
@@ -972,6 +1137,14 @@ export function TimeDuelGame() {
           ) : null}
         </div>
       </div>
+      {isImageViewerOpen ? (
+        <ImageViewer
+          key={currentQuestion.id}
+          src={currentQuestion.imageUrl}
+          alt={currentQuestion.imageAlt}
+          onClose={() => setIsImageViewerOpen(false)}
+        />
+      ) : null}
     </section>,
   );
 }
