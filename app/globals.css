@@ -30,7 +30,26 @@ body {
 }
 
 button {
-  font: inherit;
+  font-family: inherit;
+}
+
+/* Keep the historical images intact while inverting the game chrome to a light theme. */
+.theme-inverted [class*="text-white"] {
+  color: #000 !important;
+}
+
+.theme-inverted [class*="border-white"] {
+  border-color: #000 !important;
+}
+
+.theme-inverted [class*="bg-black"],
+.theme-inverted [class*="bg-[#132041]"],
+.theme-inverted [class*="bg-[#18243a]"] {
+  background-color: #fff !important;
+}
+
+.theme-inverted [class*="bg-white"] {
+  background-color: #000 !important;
 }
 
 .timeline-viewport {

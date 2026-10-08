@@ -49,14 +49,6 @@ const yearlyTickZoomThreshold = 10;
 const maximumRoundScore = 100;
 const finalScoreMultiplier = 2;
 const scoreFadeYears = 50;
-const categories = [
-  "Classic",
-  "Football",
-  "Key Events",
-  "All Time",
-  "Music",
-  "More...",
-] as const;
 const exactHitConfettiPieces = [
   { left: "8%", delay: "0ms", duration: "2200ms", rotation: "-18deg", size: "0.55rem" },
   { left: "16%", delay: "140ms", duration: "2000ms", rotation: "22deg", size: "0.45rem" },
@@ -442,7 +434,7 @@ function YearTimeline({
       : "hidden";
 
   return (
-    <div className="w-full min-w-0 max-w-full rounded-[1.4rem] border-2 border-transparent bg-[#18243a] px-2 py-3">
+    <div className="w-full min-w-0 max-w-full rounded-[1.4rem] border-2 border-transparent bg-black px-2 py-3">
       <div className="relative min-w-0 max-w-full overflow-visible">
         <div className="mb-2 flex items-center justify-between px-3 text-[0.65rem] uppercase tracking-[0.26em] text-white/52">
           <span>{minimumYear}</span>
@@ -453,7 +445,7 @@ function YearTimeline({
         <div className="relative z-10 w-full min-w-0 max-w-full overflow-visible">
           <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
           {!disabled ? (
-            <div className="pointer-events-none absolute bottom-8.5 left-1/2 top-5.5 z-20 w-px -translate-x-1/2 bg-[#f7b63d]" />
+            <div className="pointer-events-none absolute bottom-8.5 left-1/2 top-5.5 z-20 w-px -translate-x-1/2 bg-[#9f2626]" />
           ) : null}
           {typeof visibleRevealedYear === "number" && revealDifference > 0 ? (
             <svg
@@ -506,7 +498,7 @@ function YearTimeline({
                 onClick={onSubmit}
                 disabled={disabled}
                 aria-label={`Guess ${selectedYear}`}
-                className="absolute left-1/2 top-2 z-30 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#f7b63d] transition hover:scale-110 active:scale-95"
+                className="absolute left-1/2 top-2 z-30 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#9f2626] transition hover:scale-110 active:scale-95"
               />
             </>
           ) : null}
@@ -537,7 +529,7 @@ function YearTimeline({
                       "absolute left-1/2 w-px -translate-x-1/2",
                       isExactHit
                         ? "bottom-8.5 top-5.5 bg-[#39d353]"
-                        : "bottom-8.5 top-5.5 bg-[#f7b63d]",
+                        : "bottom-8.5 top-5.5 bg-[#9f2626]",
                     ].join(" ")}
                   />
                   <div
@@ -547,7 +539,7 @@ function YearTimeline({
                         : "absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full",
                       isExactHit
                         ? "bg-[#39d353] shadow-[0_0_0_0_rgba(57,211,83,0.85)] animate-[timeline-pin-flash_900ms_ease-in-out_infinite]"
-                        : "bg-[#f7b63d]",
+                        : "bg-[#9f2626]",
                     ].join(" ")}
                   />
                 </div>
@@ -729,7 +721,7 @@ function ImageViewer({ src, alt, onClose }: ImageViewerProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#080d18]/95 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Expanded image viewer"
@@ -844,21 +836,27 @@ export function TimeDuelGame() {
 
   function renderBrand(lockupClassName = "") {
     return (
-      <div className={["text-center", lockupClassName].join(" ")}>
-        <div className="flex items-end justify-center gap-3">
-          <span className="text-5xl leading-none sm:text-6xl" aria-hidden="true">
-            ⌛
+      <div
+        className={[
+          "mx-auto grid w-fit grid-cols-[auto_auto] items-center gap-x-2 gap-y-2 text-center sm:gap-x-4 sm:gap-y-3",
+          lockupClassName,
+        ].join(" ")}
+      >
+        <span
+          className="row-span-2 text-5xl leading-none sm:text-6xl"
+          aria-hidden="true"
+        >
+          ⌛
+        </span>
+        <div className="flex items-baseline justify-center leading-none">
+          <span className="text-6xl font-light tracking-[-0.06em] text-white sm:text-8xl">
+            Time
           </span>
-          <div className="flex items-end leading-none">
-            <span className="text-6xl font-light tracking-[-0.06em] text-white sm:text-8xl">
-              Time
-            </span>
-            <span className="text-6xl font-light tracking-[-0.06em] text-[#f7b63d] sm:text-8xl">
-              Duel
-            </span>
-          </div>
+          <span className="text-6xl font-light tracking-[-0.06em] text-[#9f2626] sm:text-8xl">
+            Duel
+          </span>
         </div>
-        <p className="mt-2 text-sm font-light tracking-[0.08em] text-white/88 sm:text-xl">
+        <p className="col-start-2 text-sm font-light tracking-[0.08em] text-white/88 sm:text-xl">
           Guess when history happened
         </p>
       </div>
@@ -867,7 +865,7 @@ export function TimeDuelGame() {
 
   function shell(children: ReactNode) {
     return (
-      <main className="min-h-screen w-full max-w-full bg-[#18243a] px-4 py-6 text-white sm:px-8 sm:py-8">
+      <main className="theme-inverted min-h-screen w-full max-w-full bg-white px-4 py-6 text-black sm:px-8 sm:py-8">
         <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full min-w-0 max-w-6xl flex-col">
           {children}
         </div>
@@ -880,23 +878,21 @@ export function TimeDuelGame() {
       <section className="flex flex-1 flex-col items-center justify-center gap-12 py-8 sm:gap-16">
         {renderBrand()}
 
-        <button
-          type="button"
-          onClick={startGame}
-          className="flex h-24 w-full max-w-5xl items-center justify-center rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-6xl font-medium tracking-[-0.06em] text-white transition hover:bg-white/6 sm:h-32 sm:px-5 sm:text-9xl"
-        >
-          Play Now
-        </button>
-
-        <div className="grid w-full max-w-5xl grid-cols-2 gap-6 sm:grid-cols-3">
-          {categories.map((category) => (
-            <div
-              key={category}
-              className="flex h-24 w-full items-center justify-center rounded-[1rem] border-[4px] border-white px-4 py-2 text-center text-2xl font-medium tracking-[-0.03em] text-white sm:h-32 sm:px-5 sm:text-5xl"
-            >
-              {category}
-            </div>
-          ))}
+        <div className="flex w-full max-w-5xl flex-col gap-6">
+          <button
+            type="button"
+            onClick={startGame}
+            className="flex min-h-28 w-full cursor-pointer items-center justify-center rounded-[1rem] border-[4px] border-black bg-[#fff] px-4 py-4 text-center text-[clamp(2.5rem,9vw,7.5rem)] leading-none font-medium tracking-[-0.06em] text-black transition-colors hover:bg-neutral-100 focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-black sm:min-h-44 sm:px-5"
+          >
+            Photo Mode
+          </button>
+          <button
+            type="button"
+            disabled
+            className="flex min-h-28 w-full items-center justify-center rounded-[1rem] border-[4px] border-black bg-[#fff] px-4 py-4 text-center text-[clamp(2.5rem,9vw,7.5rem)] leading-none font-medium tracking-[-0.06em] text-black sm:min-h-44 sm:px-5"
+          >
+            All Time Mode
+          </button>
         </div>
       </section>,
     );
@@ -1003,7 +999,7 @@ export function TimeDuelGame() {
       <div className="mb-2 flex justify-center" aria-label="TimeDuel">
         <div className="flex leading-none">
           <span className="text-6xl font-light tracking-[-0.06em] text-white/78 sm:text-7xl">Time</span>
-          <span className="text-6xl font-light tracking-[-0.06em] text-[#f7b63d] sm:text-7xl">Duel</span>
+          <span className="text-6xl font-light tracking-[-0.06em] text-[#9f2626] sm:text-7xl">Duel</span>
         </div>
       </div>
       <div className="mb-3 flex justify-center">
@@ -1055,7 +1051,7 @@ export function TimeDuelGame() {
         </div>
 
         <div className="flex min-h-0 w-full min-w-0 max-w-3xl flex-1 flex-col">
-          <div className="relative min-h-[18rem] w-full min-w-0 max-w-full flex-1 overflow-hidden rounded-[1.4rem] border-2 border-transparent bg-[#18243a] sm:min-h-[24rem]">
+          <div className="relative min-h-[18rem] w-full min-w-0 max-w-full flex-1 overflow-hidden rounded-[1.4rem] border-2 border-transparent bg-black sm:min-h-[24rem]">
             {isExactHitRound ? (
               <div key={`confetti-${currentRound}-${currentQuestion.id}`} className="pointer-events-none absolute inset-0 z-10">
                 {exactHitConfettiPieces.map((piece, index) => (
@@ -1094,10 +1090,10 @@ export function TimeDuelGame() {
             {currentGuess ? (
               <div className="pointer-events-none absolute left-1/2 top-[-1.125rem] z-10 flex -translate-x-1/2 -translate-y-1/2 items-start gap-3 whitespace-nowrap text-center sm:top-[-1.75rem] sm:gap-5">
                 <div>
-                  <p className="text-3xl font-medium tracking-[-0.06em] text-[#f7b63d] sm:text-5xl">
+                  <p className="text-3xl font-medium tracking-[-0.06em] text-[#9f2626] sm:text-5xl">
                     {currentGuess.selectedYear}
                   </p>
-                  <p className="mt-0.5 text-[0.56rem] font-medium uppercase tracking-[0.16em] text-[#f7b63d]/75 sm:text-[0.62rem]">
+                  <p className="mt-0.5 text-[0.56rem] font-medium uppercase tracking-[0.16em] text-[#9f2626]/75 sm:text-[0.62rem]">
                     You
                   </p>
                 </div>
@@ -1112,7 +1108,7 @@ export function TimeDuelGame() {
                 </div>
               </div>
             ) : (
-              <p className="pointer-events-none absolute left-1/2 top-5 z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-[#f7b63d] sm:top-4 sm:text-5xl">
+              <p className="pointer-events-none absolute left-1/2 top-5 z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-[#9f2626] sm:top-4 sm:text-5xl">
                 {selectedYear}
               </p>
             )}
