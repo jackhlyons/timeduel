@@ -838,35 +838,41 @@ export function TimeDuelGame() {
     return (
       <div
         className={[
-          "mx-auto grid w-fit grid-cols-[auto_auto] items-center gap-x-2 gap-y-2 text-center sm:gap-x-4 sm:gap-y-3",
+          "mx-auto flex w-fit items-center gap-0 text-left sm:text-center",
           lockupClassName,
         ].join(" ")}
       >
         <span
-          className="row-span-2 text-5xl leading-none sm:text-6xl"
+          className="shrink-0 text-5xl leading-none sm:text-6xl"
           aria-hidden="true"
         >
           ⌛
         </span>
-        <div className="flex items-baseline justify-center leading-none">
-          <span className="text-6xl font-light tracking-[-0.06em] text-white sm:text-8xl">
-            Time
-          </span>
-          <span className="text-6xl font-light tracking-[-0.06em] text-[#9f2626] sm:text-8xl">
-            Duel
-          </span>
+        <div className="flex flex-col items-start sm:items-center">
+          <div className="flex items-baseline leading-none">
+            <span className="text-6xl font-light tracking-[-0.06em] text-white sm:text-8xl">
+              Time
+            </span>
+            <span className="text-6xl font-light tracking-[-0.06em] text-[#9f2626] sm:text-8xl">
+              Duel
+            </span>
+          </div>
+          <p className="relative left-2 -mt-2 text-left text-sm font-light tracking-[0.08em] text-white/88 sm:left-0 sm:-mt-3 sm:text-center sm:text-xl">
+            Guess when history happened
+          </p>
         </div>
-        <p className="col-start-2 text-sm font-light tracking-[0.08em] text-white/88 sm:text-xl">
-          Guess when history happened
-        </p>
       </div>
     );
   }
 
-  function shell(children: ReactNode) {
+  function shell(children: ReactNode, isHomepage = false) {
     return (
-      <main className="theme-inverted min-h-screen w-full max-w-full bg-white px-4 py-6 text-black sm:px-8 sm:py-8">
-        <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full min-w-0 max-w-6xl flex-col">
+      <main className={isHomepage
+        ? "theme-inverted min-h-svh w-full max-w-full bg-white px-2 py-4 text-black sm:px-8"
+        : "theme-inverted min-h-screen w-full max-w-full bg-white px-4 py-6 text-black sm:px-8 sm:py-8"}>
+        <div className={isHomepage
+          ? "mx-auto flex min-h-[calc(100svh-2rem)] w-full min-w-0 max-w-6xl flex-col"
+          : "mx-auto flex min-h-[calc(100vh-3rem)] w-full min-w-0 max-w-6xl flex-col"}>
           {children}
         </div>
       </main>
@@ -875,26 +881,35 @@ export function TimeDuelGame() {
 
   if (!hasStarted) {
     return shell(
-      <section className="flex flex-1 flex-col items-center justify-center gap-12 py-8 sm:gap-16">
+      <section className="flex flex-1 flex-col items-center justify-center gap-6 py-4 sm:gap-8">
         {renderBrand()}
 
-        <div className="flex w-full max-w-5xl flex-col gap-6">
+        <div className="flex w-full max-w-md flex-col items-center text-center text-black">
+          <h1 className="text-base font-medium tracking-tight text-[#9f2626] sm:text-lg">
+            The Daily Challenge
+          </h1>
+          <p className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">
+            #001
+          </p>
+          <time dateTime="2026-10-08" className="mt-1 text-sm sm:text-base">
+            8 October 2026
+          </time>
+          <p className="mt-4 text-base leading-relaxed sm:text-lg">
+            5 images. 5 guesses. Once a day.
+          </p>
+        </div>
+
+        <div className="-mt-2 w-full max-w-80 sm:-mt-4">
           <button
             type="button"
             onClick={startGame}
-            className="flex min-h-28 w-full cursor-pointer items-center justify-center rounded-[1rem] border-[4px] border-black bg-[#fff] px-4 py-4 text-center text-[clamp(2.5rem,9vw,7.5rem)] leading-none font-medium tracking-[-0.06em] text-black transition-colors hover:bg-neutral-100 focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-black sm:min-h-44 sm:px-5"
+            className="flex min-h-16 w-full cursor-pointer items-center justify-center gap-3 rounded-[1rem] border border-[#9f2626] bg-[#9f2626] px-4 py-4 text-center text-xl leading-6 font-medium text-[#fff] transition-colors hover:bg-[#862020] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#9f2626]"
           >
-            Photo Mode
-          </button>
-          <button
-            type="button"
-            disabled
-            className="flex min-h-28 w-full items-center justify-center rounded-[1rem] border-[4px] border-black bg-[#fff] px-4 py-4 text-center text-[clamp(2.5rem,9vw,7.5rem)] leading-none font-medium tracking-[-0.06em] text-black sm:min-h-44 sm:px-5"
-          >
-            All Time Mode
+            Play Today&apos;s Duel <span aria-hidden="true">→</span>
           </button>
         </div>
       </section>,
+      true,
     );
   }
 
@@ -1108,7 +1123,7 @@ export function TimeDuelGame() {
                 </div>
               </div>
             ) : (
-              <p className="pointer-events-none absolute left-1/2 top-5 z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-[#9f2626] sm:top-4 sm:text-5xl">
+              <p className="pointer-events-none absolute left-1/2 top-5 z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-black sm:top-4 sm:text-5xl">
                 {selectedYear}
               </p>
             )}
