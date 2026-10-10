@@ -26,6 +26,8 @@ type YearTimelineProps = {
   selectedYear: number;
   onChange: (year: number) => void;
   onSubmit: () => void;
+  onRevealComplete: () => void;
+  resultsVisible: boolean;
   revealedYear?: number;
   showZoomHint: boolean;
 };
@@ -49,20 +51,6 @@ const yearlyTickZoomThreshold = 10;
 const maximumRoundScore = 100;
 const finalScoreMultiplier = 2;
 const scoreFadeYears = 50;
-const exactHitConfettiPieces = [
-  { left: "8%", delay: "0ms", duration: "2200ms", rotation: "-18deg", size: "0.55rem" },
-  { left: "16%", delay: "140ms", duration: "2000ms", rotation: "22deg", size: "0.45rem" },
-  { left: "23%", delay: "60ms", duration: "2350ms", rotation: "-32deg", size: "0.5rem" },
-  { left: "31%", delay: "210ms", duration: "2100ms", rotation: "28deg", size: "0.4rem" },
-  { left: "39%", delay: "0ms", duration: "1950ms", rotation: "-12deg", size: "0.6rem" },
-  { left: "47%", delay: "170ms", duration: "2400ms", rotation: "34deg", size: "0.5rem" },
-  { left: "56%", delay: "110ms", duration: "2050ms", rotation: "-24deg", size: "0.45rem" },
-  { left: "64%", delay: "250ms", duration: "2250ms", rotation: "16deg", size: "0.55rem" },
-  { left: "73%", delay: "80ms", duration: "2150ms", rotation: "-28deg", size: "0.42rem" },
-  { left: "82%", delay: "190ms", duration: "2300ms", rotation: "26deg", size: "0.5rem" },
-  { left: "90%", delay: "40ms", duration: "2000ms", rotation: "-20deg", size: "0.58rem" },
-] as const;
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -135,6 +123,8 @@ function YearTimeline({
   selectedYear,
   onChange,
   onSubmit,
+  onRevealComplete,
+  resultsVisible,
   revealedYear,
   showZoomHint,
 }: YearTimelineProps) {
@@ -142,7 +132,11 @@ function YearTimeline({
   const syncScrollRef = useRef(false);
   const revealAnimationFrameRef = useRef<number | null>(null);
   const pixelsPerYearRef = useRef(defaultZoom);
-  const timelineScrollLeftRef = useRef(0);
+  const dragStateRef = useRef<{
+    pointerId: number;
+    clientX: number;
+    scrollLeft: number;
+  } | null>(null);
   const pinchStateRef = useRef<{
     centerYear: number;
     distance: number;
@@ -150,7 +144,6 @@ function YearTimeline({
   } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [pixelsPerYear, setPixelsPerYear] = useState(defaultZoom);
-  const [timelineScrollLeft, setTimelineScrollLeft] = useState(0);
   const [readyRevealKey, setReadyRevealKey] = useState<string | null>(null);
 
   const yearSpan = maximumYear - minimumYear;
@@ -162,6 +155,16 @@ function YearTimeline({
   const revealKey =
     typeof revealedYear === "number" ? `${selectedYear}-${revealedYear}` : null;
   const visibleRevealedYear = readyRevealKey === revealKey ? revealedYear : undefined;
+
+  useEffect(() => {
+    if (
+      typeof visibleRevealedYear === "number" &&
+      !resultsVisible &&
+      (visibleRevealedYear === selectedYear || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    ) {
+      onRevealComplete();
+    }
+  }, [onRevealComplete, resultsVisible, selectedYear, visibleRevealedYear]);
 
   const centerYearOnTimeline = useCallback(
     (year: number, zoom: number) => {
@@ -179,22 +182,15 @@ function YearTimeline({
 
       syncScrollRef.current = true;
       viewport.scrollLeft = nextScrollLeft;
-      timelineScrollLeftRef.current = nextScrollLeft;
-
-      if (typeof revealedYear === "number") {
-        requestAnimationFrame(() => {
-          setTimelineScrollLeft(nextScrollLeft);
-        });
-      }
 
       requestAnimationFrame(() => {
         syncScrollRef.current = false;
       });
     },
-    [revealedYear, yearSpan],
+    [yearSpan],
   );
 
-  function updateZoom(nextZoom: number) {
+  const updateZoom = useCallback((nextZoom: number) => {
     const clampedZoom = clamp(nextZoom, minimumZoom, maximumZoom);
     const viewport = viewportRef.current;
 
@@ -205,7 +201,7 @@ function YearTimeline({
     }
 
     const centeredYear = clamp(
-      minimumYear + viewport.scrollLeft / effectivePixelsPerYear,
+      minimumYear + viewport.scrollLeft / pixelsPerYearRef.current,
       minimumYear,
       maximumYear,
     );
@@ -216,7 +212,34 @@ function YearTimeline({
     requestAnimationFrame(() => {
       centerYearOnTimeline(centeredYear, clampedZoom);
     });
-  }
+  }, [centerYearOnTimeline]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+
+    if (!viewport || disabled) {
+      return;
+    }
+
+    function handleWheel(event: globalThis.WheelEvent) {
+      event.preventDefault();
+
+      if (event.ctrlKey || event.metaKey) {
+        const zoomFactor = event.deltaY > 0 ? 0.92 : 1.08;
+        updateZoom(pixelsPerYearRef.current * zoomFactor);
+        return;
+      }
+
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : event.deltaY;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport!.clientWidth : 1;
+      viewport!.scrollLeft += delta * unit;
+    }
+
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", handleWheel);
+  }, [disabled, updateZoom]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -244,7 +267,15 @@ function YearTimeline({
       return;
     }
 
-    centerYearOnTimeline(selectedYear, effectivePixelsPerYear);
+    const viewport = viewportRef.current;
+    const centeredYear = viewport
+      ? Math.round(minimumYear + viewport.scrollLeft / effectivePixelsPerYear)
+      : null;
+
+    // User scrolling already centers the selected year; preserve its fractional offset.
+    if (centeredYear !== selectedYear) {
+      centerYearOnTimeline(selectedYear, effectivePixelsPerYear);
+    }
   }, [centerYearOnTimeline, effectivePixelsPerYear, revealedYear, selectedYear, viewportWidth]);
 
   useEffect(() => {
@@ -262,10 +293,6 @@ function YearTimeline({
     if (!viewport || viewportWidth === 0 || revealAnimationFrameRef.current !== null) {
       return;
     }
-
-    requestAnimationFrame(() => {
-      setTimelineScrollLeft(viewport.scrollLeft);
-    });
 
     const currentZoom = pixelsPerYearRef.current;
     const visibleStart = minimumYear + (viewport.scrollLeft - viewportWidth / 2) / currentZoom;
@@ -332,12 +359,6 @@ function YearTimeline({
       return;
     }
 
-    timelineScrollLeftRef.current = viewport.scrollLeft;
-
-    if (typeof revealedYear === "number") {
-      setTimelineScrollLeft(viewport.scrollLeft);
-    }
-
     if (syncScrollRef.current || disabled) {
       return;
     }
@@ -353,15 +374,33 @@ function YearTimeline({
     }
   }
 
-  function handleWheel(event: WheelEvent<HTMLDivElement>) {
-    if (!event.ctrlKey && !event.metaKey) {
+  function handleTimelinePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== "mouse" || event.button !== 0 || disabled) {
       return;
     }
 
     event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+    };
+  }
 
-    const zoomFactor = event.deltaY > 0 ? 0.92 : 1.08;
-    updateZoom(effectivePixelsPerYear * zoomFactor);
+  function handleTimelinePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragStateRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.currentTarget.scrollLeft = drag.scrollLeft + drag.clientX - event.clientX;
+  }
+
+  function handleTimelinePointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    if (dragStateRef.current?.pointerId === event.pointerId) {
+      dragStateRef.current = null;
+    }
   }
 
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
@@ -413,18 +452,8 @@ function YearTimeline({
       : null;
   const guessedOffset =
     (clamp(selectedYear, minimumYear, maximumYear) - minimumYear) * effectivePixelsPerYear + viewportWidth / 2;
-  const revealLineStartX = guessedOffset - timelineScrollLeft;
-  const revealLineEndX =
-    typeof revealedOffset === "number"
-      ? revealedOffset - timelineScrollLeft
-      : null;
   const revealLineDistance =
-    typeof revealLineEndX === "number" ? Math.abs(revealLineEndX - revealLineStartX) : 0;
-  const revealLineCurveHeight = clamp(20 + revealLineDistance * 0.12, 20, 56);
-  const revealLinePath =
-    typeof revealLineEndX === "number"
-      ? `M ${revealLineStartX} 26 Q ${(revealLineStartX + revealLineEndX) / 2} ${26 - revealLineCurveHeight} ${revealLineEndX} 26`
-      : "";
+    typeof revealedOffset === "number" ? Math.abs(revealedOffset - guessedOffset) : 0;
   const revealDifference =
     typeof visibleRevealedYear === "number" ? Math.abs(visibleRevealedYear - selectedYear) : 0;
   const isExactHit = revealDifference === 0 && typeof visibleRevealedYear === "number";
@@ -447,50 +476,6 @@ function YearTimeline({
           {!disabled ? (
             <div className="pointer-events-none absolute bottom-8.5 left-1/2 top-5.5 z-20 w-px -translate-x-1/2 bg-[#9f2626]" />
           ) : null}
-          {typeof visibleRevealedYear === "number" && revealDifference > 0 ? (
-            <svg
-              key={revealAnimationKey}
-              className="pointer-events-none absolute inset-0 z-20 overflow-visible"
-              viewBox={`0 0 ${Math.max(viewportWidth, 1)} 96`}
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <path
-                d={revealLinePath}
-                className="timeline-reveal-line"
-                pathLength={100}
-                fill="none"
-                stroke="#6dff87"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-              >
-                <animate
-                  attributeName="stroke-dashoffset"
-                  from="100"
-                  to="0"
-                  dur="3s"
-                  fill="freeze"
-                />
-              </path>
-              <path
-                d={revealLinePath}
-                className="timeline-reveal-line timeline-reveal-line-glow"
-                pathLength={100}
-                fill="none"
-                stroke="rgba(109, 255, 135, 0.3)"
-                strokeWidth={7}
-                strokeLinecap="round"
-              >
-                <animate
-                  attributeName="stroke-dashoffset"
-                  from="100"
-                  to="0"
-                  dur="3s"
-                  fill="freeze"
-                />
-              </path>
-            </svg>
-          ) : null}
           {!disabled ? (
             <>
               <button
@@ -506,16 +491,37 @@ function YearTimeline({
           <div
             ref={viewportRef}
             onScroll={handleScroll}
-            onWheel={handleWheel}
+            onPointerDown={handleTimelinePointerDown}
+            onPointerMove={handleTimelinePointerMove}
+            onPointerUp={handleTimelinePointerEnd}
+            onPointerCancel={handleTimelinePointerEnd}
+            onLostPointerCapture={handleTimelinePointerEnd}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             className={[
               "timeline-viewport relative h-24 w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden",
-              disabled ? "pointer-events-none" : "",
+              disabled ? "pointer-events-none" : "cursor-grab select-none active:cursor-grabbing",
             ].join(" ")}
           >
             <div className="relative h-full" style={{ width: `${contentWidth}px` }}>
+              {typeof revealedOffset === "number" && revealDifference > 0 ? (
+                <div
+                  key={revealAnimationKey}
+                  aria-hidden="true"
+                  onAnimationEnd={(event) => {
+                    if (event.animationName === "timeline-reveal-draw") {
+                      onRevealComplete();
+                    }
+                  }}
+                  className={`${resultsVisible ? "" : "timeline-reveal-line"} pointer-events-none absolute top-1/2 z-20 h-[3.5px] -translate-y-1/2 bg-[#9f2626]`}
+                  style={{
+                    left: `${Math.min(guessedOffset, revealedOffset)}px`,
+                    width: `${revealLineDistance}px`,
+                    transformOrigin: revealedOffset < guessedOffset ? "right center" : "left center",
+                  }}
+                />
+              ) : null}
               {disabled ? (
                 <div
                   className="pointer-events-none absolute top-0 z-10 h-full"
@@ -524,27 +530,18 @@ function YearTimeline({
                     transform: "translateX(-50%)",
                   }}
                 >
+                  <div className="absolute bottom-8.5 left-1/2 top-5.5 w-px -translate-x-1/2 bg-[#9f2626]" />
                   <div
                     className={[
-                      "absolute left-1/2 w-px -translate-x-1/2",
-                      isExactHit
-                        ? "bottom-8.5 top-5.5 bg-[#39d353]"
-                        : "bottom-8.5 top-5.5 bg-[#9f2626]",
-                    ].join(" ")}
-                  />
-                  <div
-                    className={[
-                      isExactHit
-                        ? "absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full"
-                        : "absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full",
-                      isExactHit
-                        ? "bg-[#39d353] shadow-[0_0_0_0_rgba(57,211,83,0.85)] animate-[timeline-pin-flash_900ms_ease-in-out_infinite]"
-                        : "bg-[#9f2626]",
+                      "absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#9f2626]",
+                      isExactHit && resultsVisible
+                        ? "timeline-exact-pin"
+                        : "",
                     ].join(" ")}
                   />
                 </div>
               ) : null}
-              {typeof visibleRevealedYear === "number" ? (
+              {resultsVisible && typeof visibleRevealedYear === "number" ? (
                 <div
                   className="pointer-events-none absolute top-0 z-10 h-full"
                   style={{
@@ -552,9 +549,13 @@ function YearTimeline({
                     transform: "translateX(-50%)",
                   }}
                 >
-                  <div className="absolute bottom-8.5 left-1/2 top-5.5 w-px -translate-x-1/2 bg-[#39d353]" />
-                  <div className="absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#39d353]" />
-                  <span className="absolute left-1/2 top-[calc(50%+1.85rem)] -translate-x-1/2 whitespace-nowrap text-[0.68rem] uppercase tracking-[0.16em] text-[#39d353]">
+                  {!isExactHit ? (
+                    <div className="timeline-correct-pin absolute inset-0">
+                      <div className="absolute bottom-8.5 left-1/2 top-5.5 w-px -translate-x-1/2 bg-[#333333]" />
+                      <div className="absolute left-1/2 top-2 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#333333]" />
+                    </div>
+                  ) : null}
+                  <span className="absolute left-1/2 top-[calc(50%+1.85rem)] -translate-x-1/2 whitespace-nowrap text-[0.8rem] font-medium uppercase tracking-[0.12em] text-[#171717]">
                     {visibleRevealedYear}
                   </span>
                 </div>
@@ -774,16 +775,20 @@ export function TimeDuelGame() {
   const [selectedYear, setSelectedYear] = useState(defaultTimelineYear);
   const [shareCopyState, setShareCopyState] = useState<"idle" | "copied" | "error">("idle");
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [completedRevealRound, setCompletedRevealRound] = useState<number | null>(null);
 
   const currentQuestion = rounds[currentRound];
   const currentGuess = guesses[currentRound];
+  const resultsVisible = Boolean(currentGuess) && completedRevealRound === currentRound;
+  const handleRevealComplete = useCallback(() => {
+    setCompletedRevealRound(currentRound);
+  }, [currentRound]);
   const roundBadge = getRoundBadge(currentRound);
   const exactHits = guesses.filter((guess) => guess.difference === 0).length;
   const rawScore = guesses.reduce((sum, guess) => sum + guess.roundScore, 0);
   const totalScore = rawScore * finalScoreMultiplier;
   const averageScore = guesses.length > 0 ? Math.round(rawScore / guesses.length) : 0;
   const isFinished = currentRound >= totalRounds;
-  const isExactHitRound = currentGuess?.difference === 0;
   const shareDateLabel = getShareDateLabel(new Date());
   const shareEmojiRow = guesses
     .map((guess) => `${guess.roundScore}${getShareScoreEmoji(guess.roundScore)}`)
@@ -807,6 +812,7 @@ export function TimeDuelGame() {
     setHasStarted(true);
     setCurrentRound(0);
     setGuesses([]);
+    setCompletedRevealRound(null);
     setSelectedYear(defaultTimelineYear);
     setShareCopyState("idle");
   }
@@ -830,6 +836,11 @@ export function TimeDuelGame() {
   }
 
   function advanceRound() {
+    if (!resultsVisible) {
+      return;
+    }
+
+    setCompletedRevealRound(null);
     setCurrentRound((round) => round + 1);
     setSelectedYear(defaultTimelineYear);
   }
@@ -1037,54 +1048,16 @@ export function TimeDuelGame() {
         <div className="w-full min-w-0 max-w-3xl">
           <div className="relative flex min-h-[3.5rem] min-w-0 flex-col justify-center rounded-[1rem] border border-transparent bg-transparent px-3 py-0.5 text-left sm:min-h-[3.25rem]">
             <p className="translate-y-2 text-xs uppercase tracking-[0.3em] text-white/58">
-              {currentGuess ? "Your result" : "PHOTO"}
+              PHOTO
             </p>
-            <p
-              className={[
-                "mt-0.5 translate-y-2 text-base leading-5 text-white/88",
-                currentGuess ? "break-words pr-32" : "whitespace-nowrap",
-              ].join(" ")}
-            >
-              {currentGuess
-                ? currentGuess.difference === 0
-                  ? `Exact hit. ${currentGuess.roundScore} points.`
-                  : `${currentGuess.selectedYear < currentQuestion.year ? "Too early" : "Too late"} by ${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"}. ${currentGuess.roundScore} points. The correct year was ${currentQuestion.year}.`
-                : "What year was this photo taken?"}
+            <p className="mt-0.5 translate-y-2 text-base leading-5 text-white/88">
+              What year was this photo taken?
             </p>
-            {currentGuess ? (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <button
-                  type="button"
-                  onClick={advanceRound}
-                  className="rounded-[0.85rem] border-[3px] border-white px-4 py-1.5 text-lg font-medium tracking-[-0.04em] text-white transition hover:bg-white/6"
-                >
-                  {currentRound === totalRounds - 1 ? "See Results" : "Next Round"}
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
 
         <div className="flex min-h-0 w-full min-w-0 max-w-3xl flex-1 flex-col">
           <div className="relative min-h-[18rem] w-full min-w-0 max-w-full flex-1 overflow-hidden rounded-[1.4rem] border-2 border-transparent bg-black sm:min-h-[24rem]">
-            {isExactHitRound ? (
-              <div key={`confetti-${currentRound}-${currentQuestion.id}`} className="pointer-events-none absolute inset-0 z-10">
-                {exactHitConfettiPieces.map((piece, index) => (
-                  <span
-                    key={`${currentQuestion.id}-${index}`}
-                    className="absolute top-[-12%] timeline-confetti"
-                    style={{
-                      left: piece.left,
-                      width: piece.size,
-                      height: `calc(${piece.size} * 1.9)`,
-                      rotate: piece.rotation,
-                      animationDelay: piece.delay,
-                      animationDuration: piece.duration,
-                    }}
-                  />
-                ))}
-              </div>
-            ) : null}
             <Image
               src={currentQuestion.imageUrl}
               alt={currentQuestion.imageAlt}
@@ -1103,24 +1076,17 @@ export function TimeDuelGame() {
 
           <div className="relative mt-11 sm:mt-16">
             {currentGuess ? (
-              <div className="pointer-events-none absolute left-1/2 top-[-1.125rem] z-10 flex -translate-x-1/2 -translate-y-1/2 items-start gap-3 whitespace-nowrap text-center sm:top-[-1.75rem] sm:gap-5">
-                <div>
-                  <p className="text-3xl font-medium tracking-[-0.06em] text-[#9f2626] sm:text-5xl">
-                    {currentGuess.selectedYear}
+              <div className="mb-4 min-h-6">
+                {resultsVisible ? (
+                  <p
+                    role="status"
+                    className="px-3 text-center text-lg font-medium leading-6 text-[#333333] sm:text-xl"
+                  >
+                    {currentGuess.difference === 0
+                      ? `Exact hit · ${currentGuess.roundScore} points`
+                      : `${currentGuess.difference} year${currentGuess.difference === 1 ? "" : "s"} too ${currentGuess.selectedYear < currentQuestion.year ? "early" : "late"} · ${currentGuess.roundScore} points`}
                   </p>
-                  <p className="mt-0.5 text-[0.56rem] font-medium uppercase tracking-[0.16em] text-[#9f2626]/75 sm:text-[0.62rem]">
-                    You
-                  </p>
-                </div>
-                <span className="mt-1 text-2xl font-light text-white/38 sm:mt-2 sm:text-4xl">→</span>
-                <div>
-                  <p className="text-3xl font-medium tracking-[-0.06em] text-[#39d353] sm:text-5xl">
-                    {currentQuestion.year}
-                  </p>
-                  <p className="mt-0.5 text-[0.56rem] font-medium uppercase tracking-[0.16em] text-[#39d353]/75 sm:text-[0.62rem]">
-                    Correct
-                  </p>
-                </div>
+                ) : null}
               </div>
             ) : (
               <p className="pointer-events-none absolute left-1/2 top-5 z-10 -translate-x-1/2 -translate-y-1/2 text-center text-3xl font-medium tracking-[-0.06em] text-black sm:top-4 sm:text-5xl">
@@ -1128,20 +1094,38 @@ export function TimeDuelGame() {
               </p>
             )}
             <YearTimeline
+              key={currentQuestion.id}
               disabled={Boolean(currentGuess)}
               selectedYear={currentGuess?.selectedYear ?? selectedYear}
               onChange={setSelectedYear}
               onSubmit={handleGuess}
+              onRevealComplete={handleRevealComplete}
+              resultsVisible={resultsVisible}
               revealedYear={currentGuess ? currentQuestion.year : undefined}
-              showZoomHint={currentRound === 0}
+              showZoomHint={currentRound === 0 && !currentGuess}
             />
+            <div className="mx-auto mt-4 w-full max-w-80">
+              {!currentGuess || resultsVisible ? (
+                <button
+                  type="button"
+                  onClick={currentGuess ? advanceRound : handleGuess}
+                  className="flex min-h-16 w-full cursor-pointer items-center justify-center gap-3 rounded-[1rem] border border-[#9f2626] bg-[#9f2626] px-4 py-4 text-center text-xl leading-6 font-medium text-[#fff] transition-colors hover:bg-[#862020] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#9f2626]"
+                >
+                  {currentGuess
+                    ? currentRound === totalRounds - 1 ? "See Results" : "Next Round"
+                    : "Guess"} <span aria-hidden="true">→</span>
+                </button>
+              ) : (
+                <div className="min-h-16" />
+              )}
+            </div>
           </div>
         </div>
 
         <div className="min-h-[1rem] w-full min-w-0 max-w-3xl" />
 
         <div className="min-h-[2.5rem] w-full min-w-0 max-w-3xl">
-          {currentGuess && currentQuestion.imageCredit ? (
+          {resultsVisible && currentQuestion.imageCredit ? (
             <div className="mx-auto w-full min-w-0 max-w-3xl text-center text-sm leading-6 text-white/74">
               <p className="font-medium text-white/88">{currentQuestion.imageCredit}</p>
             </div>

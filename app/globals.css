@@ -63,68 +63,64 @@ button {
 }
 
 .timeline-reveal-line {
-  fill: none;
-  stroke: #6dff87;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: timeline-reveal-draw 3000ms cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
+  animation: timeline-reveal-draw 2400ms linear forwards;
 }
 
-.timeline-reveal-line-glow {
-  stroke: rgba(109, 255, 135, 0.3);
-  stroke-width: 7;
+.timeline-exact-pin {
+  animation: timeline-pin-flash 900ms ease-out 3;
 }
 
-.timeline-confetti {
-  border-radius: 999px;
-  background: linear-gradient(180deg, #d8ffe0 0%, #72f08a 38%, #1d9a3a 100%);
-  box-shadow: 0 0 0.7rem rgba(109, 255, 135, 0.45);
-  opacity: 0;
-  animation: timeline-confetti-fall 2200ms linear forwards;
+.timeline-correct-pin {
+  animation: timeline-pin-drop 420ms ease-out both;
+}
+
+@keyframes timeline-pin-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+
+  65% {
+    opacity: 1;
+    transform: translateY(2px);
+  }
+
+  85% {
+    transform: translateY(-1px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes timeline-reveal-draw {
   from {
-    stroke-dashoffset: 100;
+    transform: scaleX(0);
   }
 
   to {
-    stroke-dashoffset: 0;
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-reveal-line,
+  .timeline-exact-pin,
+  .timeline-correct-pin {
+    animation: none;
   }
 }
 
 @keyframes timeline-pin-flash {
   0%,
   100% {
-    box-shadow:
-      0 0 0 0 rgba(57, 211, 83, 0.85),
-      0 0 0.35rem rgba(109, 255, 135, 0.85);
-    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(159, 38, 38, 0);
   }
 
   50% {
-    box-shadow:
-      0 0 0 0.7rem rgba(57, 211, 83, 0),
-      0 0 0.8rem rgba(109, 255, 135, 1);
-    filter: brightness(1.2);
-  }
-}
-
-@keyframes timeline-confetti-fall {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, -8%, 0) scale(0.8);
-  }
-
-  10% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(0, 135%, 0) rotate(320deg) scale(1.05);
+    box-shadow: 0 0 0 0.45rem rgba(159, 38, 38, 0.16);
   }
 }
 
